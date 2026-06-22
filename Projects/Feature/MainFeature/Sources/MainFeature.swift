@@ -32,45 +32,46 @@ public struct MainView: View {
     }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("TennisCoach")
-                            .font(.largeTitle.weight(.heavy))
-                        Text("오늘은 하나의 cue에 집중해요.")
-                            .font(.headline)
+        ZStack {
+            LiquidGlassBackground()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            StatusCapsule("AIRPODS FORM COACH", tone: .active)
+                            Text("TennisCoach")
+                                .font(.largeTitle.weight(.heavy))
+                            Text("오늘은 하나의 cue에 집중해요.")
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        GlassIconButton(systemName: "gearshape.fill", action: onSettings)
+                    }
+
+                    PrimaryCoachButton("훈련 시작", action: onStartTraining)
+
+                    CoachCard {
+                        Text("빠른 시작")
+                            .font(.headline.weight(.heavy))
+                        HStack {
+                            MetricPill(title: "포핸드", value: "시작")
+                            MetricPill(title: "백핸드", value: "시작")
+                        }
+                    }
+
+                    CoachCard {
+                        Text("최근 세션")
+                            .font(.headline.weight(.heavy))
+                        Text("아직 세션 기록이 없어요.")
                             .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button(action: onSettings) {
-                        Image(systemName: "gearshape.fill")
-                            .font(.title3)
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-                PrimaryCoachButton("훈련 시작", action: onStartTraining)
-
-                CoachCard {
-                    Text("빠른 시작")
-                        .font(.headline.weight(.heavy))
-                    HStack {
-                        MetricPill(title: "포핸드", value: "시작")
-                        MetricPill(title: "백핸드", value: "시작")
+                        Button("히스토리 보기", action: onHistory)
+                            .buttonStyle(.bordered)
+                            .buttonBorderShape(.capsule)
                     }
                 }
-
-                CoachCard {
-                    Text("최근 세션")
-                        .font(.headline.weight(.heavy))
-                    Text("아직 세션 기록이 없어요.")
-                        .foregroundStyle(.secondary)
-                    Button("히스토리 보기", action: onHistory)
-                }
+                .padding(20)
             }
-            .padding(20)
         }
-        .background(CoachTheme.canvas)
     }
 }

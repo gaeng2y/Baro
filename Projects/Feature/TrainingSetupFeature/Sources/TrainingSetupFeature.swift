@@ -26,49 +26,54 @@ public struct TrainingSetupView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("훈련 설정")
-                .font(.largeTitle.weight(.heavy))
-
-            CoachCard {
-                Text("동작")
-                    .font(.headline.weight(.heavy))
-                Picker("동작", selection: $state.strokeType) {
-                    ForEach(StrokeType.allCases) { stroke in
-                        Text(stroke.title).tag(stroke)
-                    }
+        ZStack {
+            LiquidGlassBackground()
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 8) {
+                    StatusCapsule("SETUP", tone: .neutral)
+                    Text("훈련 설정")
+                        .font(.largeTitle.weight(.heavy))
                 }
-                .pickerStyle(.segmented)
-            }
 
-            CoachCard {
-                Text("촬영 모드")
-                    .font(.headline.weight(.heavy))
-                Picker("촬영 모드", selection: $state.cameraMode) {
-                    ForEach(CameraMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
+                CoachCard {
+                    Text("동작")
+                        .font(.headline.weight(.heavy))
+                    Picker("동작", selection: $state.strokeType) {
+                        ForEach(StrokeType.allCases) { stroke in
+                            Text(stroke.title).tag(stroke)
+                        }
                     }
+                    .pickerStyle(.segmented)
                 }
-                .pickerStyle(.segmented)
-                Text(cameraGuide)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
 
-            CoachCard {
-                Label("전신이 화면에 들어오면 시작할 수 있어요.", systemImage: "figure.tennis")
-                Label("조명 부족, 신체 일부 누락, 카메라 흔들림은 분석에서 제외합니다.", systemImage: "exclamationmark.triangle")
-            }
-            .font(.subheadline.weight(.semibold))
+                CoachCard {
+                    Text("촬영 모드")
+                        .font(.headline.weight(.heavy))
+                    Picker("촬영 모드", selection: $state.cameraMode) {
+                        ForEach(CameraMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    Text(cameraGuide)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
 
-            PrimaryCoachButton("세션 시작") {
-                onStart(state.strokeType, state.cameraMode)
-            }
+                CoachCard {
+                    Label("전신이 화면에 들어오면 시작할 수 있어요.", systemImage: "figure.tennis")
+                    Label("조명 부족, 신체 일부 누락, 카메라 흔들림은 분석에서 제외합니다.", systemImage: "exclamationmark.triangle")
+                }
+                .font(.subheadline.weight(.semibold))
 
-            Spacer()
+                PrimaryCoachButton("세션 시작") {
+                    onStart(state.strokeType, state.cameraMode)
+                }
+
+                Spacer()
+            }
+            .padding(20)
         }
-        .padding(20)
-        .background(CoachTheme.canvas)
     }
 
     private var cameraGuide: String {
