@@ -1,17 +1,20 @@
 import ProjectDescription
+import Foundation
 
 let bundlePrefix = "co.gaeng2y.tenniscoach"
 let deploymentTargets = DeploymentTargets.iOS("17.0")
+let developmentTeam = localDevelopmentTeam()
 
 let project = Project(
     name: "TennisCoach",
     organizationName: "TennisCoach",
     settings: .settings(
         base: [
-            "SWIFT_VERSION": "6.0",
-            "IPHONEOS_DEPLOYMENT_TARGET": "17.0",
-            "ENABLE_USER_SCRIPT_SANDBOXING": "YES",
-            "DEVELOPMENT_TEAM": ""
+            "SWIFT_VERSION": .string("6.0"),
+            "IPHONEOS_DEPLOYMENT_TARGET": .string("17.0"),
+            "ENABLE_USER_SCRIPT_SANDBOXING": .string("YES"),
+            "CODE_SIGN_STYLE": .string("Automatic"),
+            "DEVELOPMENT_TEAM": .string(developmentTeam)
         ]
     ),
     targets: [
@@ -81,6 +84,16 @@ func appTarget() -> Target {
             .target(name: "AppFeature")
         ]
     )
+}
+
+func localDevelopmentTeam() -> String {
+    let path = "Tuist/Local/TeamID.txt"
+    guard
+        let content = try? String(contentsOfFile: path, encoding: .utf8)
+    else {
+        return ""
+    }
+    return content.trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
 func featureTarget(name: String) -> Target {

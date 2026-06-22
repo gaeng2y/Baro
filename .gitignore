@@ -4,6 +4,7 @@ Derived/
 .build/
 .swiftpm/
 .tuist/
+Tuist/Local/
 Tuist/Dependencies/
 *.xcodeproj
 *.xcworkspace

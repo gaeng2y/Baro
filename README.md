@@ -188,6 +188,23 @@ TennisCoach.xcodeproj
 Derived/
 ```
 
+### Configure Code Signing
+
+Apple Developer Team ID는 로컬 파일로만 저장합니다. 저장 파일은 `.gitignore`에 포함되어 커밋되지 않습니다.
+
+```bash
+swift Scripts/CodeSigning.swift YOURTEAMID
+tuist generate
+```
+
+인자 없이 실행하면 대화형으로 입력할 수 있습니다.
+
+```bash
+swift Scripts/CodeSigning.swift
+```
+
+스크립트는 `Tuist/Local/TeamID.txt`를 만들고, `Project.swift`가 이 값을 읽어 `DEVELOPMENT_TEAM`에 넣습니다.
+
 ### Build
 
 ```bash
