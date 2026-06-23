@@ -38,7 +38,16 @@ let project = Project(
         featureTarget(name: "OnboardingFeature"),
         featureTarget(name: "MainFeature"),
         featureTarget(name: "TrainingSetupFeature"),
-        featureTarget(name: "RecordFeature"),
+        frameworkTarget(
+            name: "RecordFeature",
+            sourcePath: "Projects/Feature/RecordFeature",
+            dependencies: [
+                .target(name: "TennisDomain"),
+                .target(name: "TennisCore"),
+                .target(name: "DesignSystem"),
+                .target(name: "CameraPreviewUI")
+            ]
+        ),
         featureTarget(name: "SessionSummaryFeature"),
         featureTarget(name: "HistoryFeature"),
         featureTarget(name: "SettingsFeature"),
@@ -51,6 +60,13 @@ let project = Project(
         ),
         frameworkTarget(name: "TennisDomain", sourcePath: "Projects/Domain/TennisDomain"),
         frameworkTarget(name: "DesignSystem", sourcePath: "Projects/UserInterface/DesignSystem"),
+        frameworkTarget(
+            name: "CameraPreviewUI",
+            sourcePath: "Projects/UserInterface/CameraPreviewUI",
+            dependencies: [
+                .target(name: "TennisCore")
+            ]
+        ),
         testTarget(
             name: "TennisDomainTests",
             sourcePath: "Projects/Domain/TennisDomain",

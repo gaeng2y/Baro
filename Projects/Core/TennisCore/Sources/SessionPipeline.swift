@@ -25,4 +25,14 @@ public struct SessionPipeline: Sendable {
         coachingEngine: .ruleBased,
         audioFeedback: .preview
     )
+
+    @MainActor
+    public static func live() -> SessionPipeline {
+        SessionPipeline(
+            camera: .live(),
+            poseEstimator: .preview,
+            coachingEngine: .ruleBased,
+            audioFeedback: .live()
+        )
+    }
 }

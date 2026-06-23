@@ -6,7 +6,7 @@ import TennisCore
 struct TennisCoachApp: App {
     var body: some Scene {
         WindowGroup {
-            AppFeatureView(pipeline: .preview)
+            AppFeatureView(pipeline: .live())
         }
     }
 }

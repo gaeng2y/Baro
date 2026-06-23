@@ -1,3 +1,4 @@
+import CameraPreviewUI
 import DesignSystem
 import SwiftUI
 import TennisCore
@@ -77,10 +78,7 @@ public struct RecordView: View {
                     )
                 }
 
-                CameraGlassPlaceholder(
-                    title: "Camera Preview",
-                    subtitle: "Phase 0에서 AVFoundation preview layer를 연결합니다."
-                )
+                CameraPreviewView(camera: pipeline.camera)
                 .frame(height: 300)
 
                 HStack {
