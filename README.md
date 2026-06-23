@@ -192,6 +192,20 @@ Derived/
 
 Apple Developer Team ID는 로컬 파일로만 저장합니다. 저장 파일은 `.gitignore`에 포함되어 커밋되지 않습니다.
 
+Mulimi와 같은 Makefile 흐름으로 설정할 수 있습니다.
+
+```bash
+make setup TEAM_ID=8UV3Y69NB7
+```
+
+Team ID만 저장하려면:
+
+```bash
+make signing TEAM_ID=8UV3Y69NB7
+```
+
+직접 Swift 스크립트를 실행할 수도 있습니다.
+
 ```bash
 swift Scripts/CodeSigning.swift YOURTEAMID
 tuist generate
@@ -204,6 +218,16 @@ swift Scripts/CodeSigning.swift
 ```
 
 스크립트는 `Tuist/Local/TeamID.txt`를 만들고, `Project.swift`가 이 값을 읽어 `DEVELOPMENT_TEAM`에 넣습니다.
+
+### Make Commands
+
+```bash
+make help
+make generate
+make build
+make test
+make clean
+```
 
 ### Build
 

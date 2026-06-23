@@ -87,7 +87,11 @@ func appTarget() -> Target {
 }
 
 func localDevelopmentTeam() -> String {
-    let path = "Tuist/Local/TeamID.txt"
+    let manifestDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+    let path = manifestDirectory
+        .appendingPathComponent("Tuist/Local/TeamID.txt")
+        .path
+
     guard
         let content = try? String(contentsOfFile: path, encoding: .utf8)
     else {
