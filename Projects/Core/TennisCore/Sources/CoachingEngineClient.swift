@@ -44,7 +44,6 @@ public extension CoachingEngineClient {
 
 enum SwingMetricExtractor {
     static func extract(from sequence: PoseSequence) -> SwingMetrics {
-        let frameCount = max(sequence.frames.count, 1)
         let wristTravel = wristTravel(in: sequence)
         return SwingMetrics(
             shoulderLineAngle: 0,

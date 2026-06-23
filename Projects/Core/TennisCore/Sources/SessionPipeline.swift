@@ -30,7 +30,7 @@ public struct SessionPipeline: Sendable {
     public static func live() -> SessionPipeline {
         SessionPipeline(
             camera: .live(),
-            poseEstimator: .preview,
+            poseEstimator: .vision,
             coachingEngine: .ruleBased,
             audioFeedback: .live()
         )
