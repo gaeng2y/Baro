@@ -5,6 +5,7 @@ AirPods 기반 테니스 자세 교정 iOS 앱입니다. iPhone 카메라로 포
 ## Documents
 
 - [PRD.md](PRD.md): AirPods Tennis Form Coach PRD v0.1
+- [docs/README.md](docs/README.md): engineering docs index
 
 ## Stack
 
