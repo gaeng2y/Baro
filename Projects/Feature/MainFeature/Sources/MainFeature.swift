@@ -12,21 +12,25 @@ public struct MainFeatureState: Equatable {
 
 public enum MainFeatureAction: Equatable {
     case startTraining
+    case quickStart(StrokeType)
     case openHistory
     case openSettings
 }
 
 public struct MainView: View {
     public var onStartTraining: () -> Void
+    public var onQuickStart: (StrokeType) -> Void
     public var onHistory: () -> Void
     public var onSettings: () -> Void
 
     public init(
         onStartTraining: @escaping () -> Void,
+        onQuickStart: @escaping (StrokeType) -> Void,
         onHistory: @escaping () -> Void,
         onSettings: @escaping () -> Void
     ) {
         self.onStartTraining = onStartTraining
+        self.onQuickStart = onQuickStart
         self.onHistory = onHistory
         self.onSettings = onSettings
     }
@@ -52,11 +56,30 @@ public struct MainView: View {
                     PrimaryCoachButton("훈련 시작", action: onStartTraining)
 
                     CoachCard {
-                        Text("빠른 시작")
-                            .font(.headline.weight(.heavy))
                         HStack {
-                            MetricPill(title: "포핸드", value: "시작")
-                            MetricPill(title: "백핸드", value: "시작")
+                            Text("빠른 시작")
+                                .font(.headline.weight(.heavy))
+                            Spacer()
+                            StatusCapsule("체크 후 시작", tone: .neutral)
+                        }
+
+                        HStack(spacing: 10) {
+                            QuickStartShortcut(
+                                title: "포핸드",
+                                detail: "측면 세팅",
+                                systemImage: "figure.tennis",
+                                tint: CoachTheme.tennisTint
+                            ) {
+                                onQuickStart(.forehand)
+                            }
+                            QuickStartShortcut(
+                                title: "양손 백핸드",
+                                detail: "회전 확인",
+                                systemImage: "arrow.triangle.2.circlepath",
+                                tint: CoachTheme.courtBlue
+                            ) {
+                                onQuickStart(.twoHandBackhand)
+                            }
                         }
                     }
 
@@ -73,5 +96,56 @@ public struct MainView: View {
                 .padding(20)
             }
         }
+    }
+}
+
+private struct QuickStartShortcut: View {
+    let title: String
+    let detail: String
+    let systemImage: String
+    let tint: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Image(systemName: systemImage)
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(tint)
+                        .frame(width: 34, height: 34)
+                        .background(.thinMaterial, in: Circle())
+                        .overlay {
+                            Circle()
+                                .strokeBorder(tint.opacity(0.28), lineWidth: 1)
+                        }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.heavy))
+                        .foregroundStyle(CoachTheme.secondaryText)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.headline.weight(.heavy))
+                        .foregroundStyle(CoachTheme.primaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                    Text(detail)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(CoachTheme.secondaryText)
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, minHeight: 112, alignment: .leading)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(tint.opacity(0.24), lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title) 빠른 시작")
+        .accessibilityHint("선택한 동작으로 훈련 설정을 엽니다.")
     }
 }

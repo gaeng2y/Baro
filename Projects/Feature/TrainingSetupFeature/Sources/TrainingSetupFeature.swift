@@ -9,7 +9,19 @@ public struct TrainingSetupState: Equatable {
     public var hasEnoughLight: Bool = false
     public var isPhoneStable: Bool = false
 
-    public init() {}
+    public init(
+        strokeType: StrokeType = .forehand,
+        cameraMode: CameraMode = .side,
+        isBodyInFrame: Bool = false,
+        hasEnoughLight: Bool = false,
+        isPhoneStable: Bool = false
+    ) {
+        self.strokeType = strokeType
+        self.cameraMode = cameraMode
+        self.isBodyInFrame = isBodyInFrame
+        self.hasEnoughLight = hasEnoughLight
+        self.isPhoneStable = isPhoneStable
+    }
 
     public var isReadyToStart: Bool {
         isBodyInFrame && hasEnoughLight && isPhoneStable
@@ -37,10 +49,14 @@ public enum TrainingSetupAction: Equatable {
 }
 
 public struct TrainingSetupView: View {
-    @State private var state = TrainingSetupState()
+    @State private var state: TrainingSetupState
     public var onStart: (StrokeType, CameraMode) -> Void
 
-    public init(onStart: @escaping (StrokeType, CameraMode) -> Void) {
+    public init(
+        initialStrokeType: StrokeType = .forehand,
+        onStart: @escaping (StrokeType, CameraMode) -> Void
+    ) {
+        self._state = State(initialValue: TrainingSetupState(strokeType: initialStrokeType))
         self.onStart = onStart
     }
 

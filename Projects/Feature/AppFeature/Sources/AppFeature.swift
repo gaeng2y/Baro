@@ -19,7 +19,7 @@ public struct AppFeatureState: Equatable {
 
     public enum Route: Equatable {
         case main
-        case setup
+        case setup(StrokeType?)
         case record(StrokeType, CameraMode)
         case summary(TrainingSession)
         case history
@@ -30,6 +30,7 @@ public struct AppFeatureState: Equatable {
 public enum AppFeatureAction: Equatable {
     case onboardingCompleted(UserProfile)
     case startTraining
+    case quickStart(StrokeType)
     case startRecord(StrokeType, CameraMode)
     case sessionFinished(TrainingSession)
     case openHistory
@@ -48,7 +49,9 @@ public struct AppFeatureReducer {
             state.hasCompletedOnboarding = true
             state.route = .main
         case .startTraining:
-            state.route = .setup
+            state.route = .setup(nil)
+        case let .quickStart(stroke):
+            state.route = .setup(stroke)
         case let .startRecord(stroke, cameraMode):
             state.route = .record(stroke, cameraMode)
         case let .sessionFinished(session):
@@ -93,11 +96,12 @@ public struct AppFeatureView: View {
             case .main:
                 MainView(
                     onStartTraining: { send(.startTraining) },
+                    onQuickStart: { send(.quickStart($0)) },
                     onHistory: { send(.openHistory) },
                     onSettings: { send(.openSettings) }
                 )
-            case .setup:
-                TrainingSetupView { stroke, cameraMode in
+            case let .setup(initialStroke):
+                TrainingSetupView(initialStrokeType: initialStroke ?? .forehand) { stroke, cameraMode in
                     send(.startRecord(stroke, cameraMode))
                 }
                 .toolbar {
