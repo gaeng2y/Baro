@@ -107,7 +107,16 @@ public struct RecordView: View {
                 }
 
                 CameraPreviewView(camera: pipeline.camera)
-                .frame(height: 300)
+                    .frame(height: 300)
+                    .overlay {
+                        CameraStatusOverlay(
+                            cameraMode: state.cameraMode,
+                            cameraQuality: state.cameraQuality,
+                            isBodyDetected: state.isBodyDetected,
+                            isSwinging: state.isSwinging
+                        )
+                    }
+                    .allowsHitTesting(false)
 
                 HStack {
                     MetricPill(title: "스윙", value: "\(state.swingCount)")
@@ -198,5 +207,184 @@ public struct RecordView: View {
                 summary: summary
             )
         )
+    }
+}
+
+private struct CameraStatusOverlay: View {
+    let cameraMode: CameraMode
+    let cameraQuality: CameraQuality
+    let isBodyDetected: Bool
+    let isSwinging: Bool
+
+    var body: some View {
+        ZStack {
+            bodyFrameGuide
+
+            VStack {
+                HStack {
+                    CameraOverlayBadge(
+                        iconName: "viewfinder.rectangular",
+                        title: "전신 프레임",
+                        tint: isBodyDetected ? CoachTheme.tennisTint : .white
+                    )
+                    Spacer()
+                    CameraOverlayBadge(
+                        iconName: "camera.metering.center.weighted",
+                        title: cameraMode.title,
+                        tint: .white
+                    )
+                }
+
+                Spacer()
+
+                HStack(spacing: 8) {
+                    CameraOverlayMetric(
+                        iconName: isBodyDetected ? "checkmark.circle.fill" : "figure.stand",
+                        title: "몸 인식",
+                        value: isBodyDetected ? "완료" : "대기",
+                        tint: isBodyDetected ? CoachTheme.tennisTint : .orange
+                    )
+                    CameraOverlayMetric(
+                        iconName: qualityIconName,
+                        title: "화질",
+                        value: qualityText,
+                        tint: qualityTint
+                    )
+                    CameraOverlayMetric(
+                        iconName: isSwinging ? "figure.tennis" : "pause.circle.fill",
+                        title: "스윙",
+                        value: isSwinging ? "감지" : "대기",
+                        tint: isSwinging ? CoachTheme.tennisTint : .white
+                    )
+                }
+            }
+            .padding(14)
+        }
+        .contentShape(Rectangle())
+    }
+
+    private var bodyFrameGuide: some View {
+        GeometryReader { proxy in
+            let horizontalInset = max(46, proxy.size.width * 0.18)
+
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .strokeBorder(
+                    isBodyDetected ? CoachTheme.tennisTint.opacity(0.92) : Color.white.opacity(0.44),
+                    style: StrokeStyle(lineWidth: 2, dash: isBodyDetected ? [] : [9, 8])
+                )
+                .padding(.horizontal, horizontalInset)
+                .padding(.vertical, 26)
+                .overlay {
+                    VStack(spacing: 0) {
+                        Rectangle()
+                            .fill(Color.white.opacity(0.28))
+                            .frame(width: 1)
+                        Circle()
+                            .strokeBorder(Color.white.opacity(0.36), lineWidth: 1)
+                            .frame(width: 74, height: 74)
+                        Rectangle()
+                            .fill(Color.white.opacity(0.28))
+                            .frame(width: 1)
+                    }
+                    .padding(.vertical, 40)
+                    .opacity(isBodyDetected ? 0.2 : 0.42)
+                }
+        }
+    }
+
+    private var qualityText: String {
+        switch cameraQuality {
+        case .ready:
+            "분석 가능"
+        case .bodyOutOfFrame:
+            "화면 안으로"
+        case .lowLight:
+            "조명 부족"
+        case .unstable:
+            "흔들림"
+        case .lowConfidence:
+            "인식 낮음"
+        }
+    }
+
+    private var qualityIconName: String {
+        switch cameraQuality {
+        case .ready:
+            "checkmark.seal.fill"
+        case .bodyOutOfFrame:
+            "figure.stand.line.dotted.figure.stand"
+        case .lowLight:
+            "lightbulb.slash.fill"
+        case .unstable:
+            "waveform.path.ecg"
+        case .lowConfidence:
+            "eye.slash.fill"
+        }
+    }
+
+    private var qualityTint: Color {
+        switch cameraQuality {
+        case .ready:
+            CoachTheme.tennisTint
+        case .bodyOutOfFrame, .lowLight, .unstable, .lowConfidence:
+            .orange
+        }
+    }
+}
+
+private struct CameraOverlayBadge: View {
+    let iconName: String
+    let title: String
+    let tint: Color
+
+    var body: some View {
+        Label(title, systemImage: iconName)
+            .font(.caption.weight(.heavy))
+            .foregroundStyle(tint)
+            .lineLimit(1)
+            .minimumScaleFactor(0.78)
+            .padding(.horizontal, 12)
+            .frame(minHeight: 32)
+            .background(.ultraThinMaterial, in: Capsule(style: .continuous))
+            .overlay {
+                Capsule(style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.24), lineWidth: 1)
+            }
+            .shadow(color: Color.black.opacity(0.24), radius: 12, x: 0, y: 6)
+    }
+}
+
+private struct CameraOverlayMetric: View {
+    let iconName: String
+    let title: String
+    let value: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: iconName)
+                .font(.caption.weight(.heavy))
+                .foregroundStyle(tint)
+                .frame(width: 18, height: 18)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.72))
+                Text(value)
+                    .font(.caption.weight(.heavy))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+        }
+        .padding(.horizontal, 9)
+        .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.22), lineWidth: 1)
+        }
+        .shadow(color: Color.black.opacity(0.22), radius: 12, x: 0, y: 6)
     }
 }
