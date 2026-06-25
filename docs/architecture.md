@@ -87,6 +87,7 @@ External system boundaries and runtime orchestration:
 - `PoseEstimationClient`
 - `CoachingEngineClient`
 - `AudioFeedbackClient`
+- `LocalAppStorageClient`
 - `LocalSessionStoreClient`
 - `SessionPipeline`
 - `SwingPhaseDetector`
@@ -141,4 +142,3 @@ Reducers should not process frame-by-frame camera or pose data.
 - Prefer deterministic tests for cue selection, summary building, phase detection, and metric extraction.
 - Use `make test` for domain test verification.
 - Use `make build` for app, feature, UI, Core, and manifest changes.
-
