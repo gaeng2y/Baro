@@ -6,7 +6,13 @@ public struct SettingsState: Equatable {
     public var feedbackFrequency: FeedbackFrequency = .normal
     public var saveVideoClips: Bool = false
 
-    public init() {}
+    public init(
+        feedbackFrequency: FeedbackFrequency = .normal,
+        saveVideoClips: Bool = false
+    ) {
+        self.feedbackFrequency = feedbackFrequency
+        self.saveVideoClips = saveVideoClips
+    }
 }
 
 public enum SettingsAction: Equatable {
@@ -16,10 +22,26 @@ public enum SettingsAction: Equatable {
 }
 
 public struct SettingsView: View {
-    @State private var state = SettingsState()
+    @State private var state: SettingsState
+    public var onFeedbackFrequencyChange: (FeedbackFrequency) -> Void
+    public var onSaveVideoClipsChange: (Bool) -> Void
     public var onDeleteLocalData: () -> Void
 
-    public init(onDeleteLocalData: @escaping () -> Void) {
+    public init(
+        feedbackFrequency: FeedbackFrequency = .normal,
+        saveVideoClips: Bool = false,
+        onFeedbackFrequencyChange: @escaping (FeedbackFrequency) -> Void = { _ in },
+        onSaveVideoClipsChange: @escaping (Bool) -> Void = { _ in },
+        onDeleteLocalData: @escaping () -> Void
+    ) {
+        self._state = State(
+            initialValue: SettingsState(
+                feedbackFrequency: feedbackFrequency,
+                saveVideoClips: saveVideoClips
+            )
+        )
+        self.onFeedbackFrequencyChange = onFeedbackFrequencyChange
+        self.onSaveVideoClipsChange = onSaveVideoClipsChange
         self.onDeleteLocalData = onDeleteLocalData
     }
 
@@ -28,7 +50,7 @@ public struct SettingsView: View {
             LiquidGlassBackground()
             Form {
                 Section("피드백") {
-                    Picker("빈도", selection: $state.feedbackFrequency) {
+                    Picker("빈도", selection: feedbackFrequencyBinding) {
                         Text("적게").tag(FeedbackFrequency.low)
                         Text("보통").tag(FeedbackFrequency.normal)
                         Text("자주").tag(FeedbackFrequency.high)
@@ -38,7 +60,7 @@ public struct SettingsView: View {
                 }
 
                 Section("개인정보") {
-                    Toggle("선택한 짧은 클립 저장", isOn: $state.saveVideoClips)
+                    Toggle("선택한 짧은 클립 저장", isOn: saveVideoClipsBinding)
                     Text("원본 영상은 기본 저장하지 않고, 세션 요약과 필요한 metric만 로컬에 저장합니다.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -50,5 +72,25 @@ public struct SettingsView: View {
             .scrollContentBackground(.hidden)
         }
         .navigationTitle("설정")
+    }
+
+    private var feedbackFrequencyBinding: Binding<FeedbackFrequency> {
+        Binding(
+            get: { state.feedbackFrequency },
+            set: { newValue in
+                state.feedbackFrequency = newValue
+                onFeedbackFrequencyChange(newValue)
+            }
+        )
+    }
+
+    private var saveVideoClipsBinding: Binding<Bool> {
+        Binding(
+            get: { state.saveVideoClips },
+            set: { newValue in
+                state.saveVideoClips = newValue
+                onSaveVideoClipsChange(newValue)
+            }
+        )
     }
 }

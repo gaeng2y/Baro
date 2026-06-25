@@ -13,6 +13,8 @@ public struct AppFeatureState: Equatable {
     public var hasCompletedOnboarding: Bool = false
     public var userProfile: UserProfile?
     public var sessions: [TrainingSession] = []
+    public var saveVideoClips: Bool = false
+    public var storageErrorMessage: String?
     public var route: Route = .main
 
     public init() {}
@@ -28,11 +30,15 @@ public struct AppFeatureState: Equatable {
 }
 
 public enum AppFeatureAction: Equatable {
+    case appStorageLoaded(PersistedAppState)
+    case appStorageFailed(String)
     case onboardingCompleted(UserProfile)
     case startTraining
     case quickStart(StrokeType)
     case startRecord(StrokeType, CameraMode)
     case sessionFinished(TrainingSession)
+    case feedbackFrequencyChanged(FeedbackFrequency)
+    case saveVideoClipsChanged(Bool)
     case openHistory
     case openSettings
     case backToMain
@@ -44,9 +50,19 @@ public struct AppFeatureReducer {
 
     public func reduce(state: inout AppFeatureState, action: AppFeatureAction) {
         switch action {
+        case let .appStorageLoaded(persistedState):
+            state.userProfile = persistedState.userProfile
+            state.hasCompletedOnboarding = persistedState.userProfile != nil
+            state.sessions = persistedState.sessions
+            state.saveVideoClips = persistedState.saveVideoClips
+            state.storageErrorMessage = nil
+            state.route = .main
+        case let .appStorageFailed(message):
+            state.storageErrorMessage = message
         case let .onboardingCompleted(profile):
             state.userProfile = profile
             state.hasCompletedOnboarding = true
+            state.storageErrorMessage = nil
             state.route = .main
         case .startTraining:
             state.route = .setup(nil)
@@ -57,6 +73,15 @@ public struct AppFeatureReducer {
         case let .sessionFinished(session):
             state.sessions.insert(session, at: 0)
             state.route = .summary(session)
+        case let .feedbackFrequencyChanged(frequency):
+            guard var profile = state.userProfile else {
+                return
+            }
+            profile.feedbackFrequency = frequency
+            profile.updatedAt = Date()
+            state.userProfile = profile
+        case let .saveVideoClipsChanged(isEnabled):
+            state.saveVideoClips = isEnabled
         case .openHistory:
             state.route = .history
         case .openSettings:
@@ -64,7 +89,12 @@ public struct AppFeatureReducer {
         case .backToMain:
             state.route = .main
         case .deleteLocalData:
+            state.hasCompletedOnboarding = false
+            state.userProfile = nil
             state.sessions = []
+            state.saveVideoClips = false
+            state.storageErrorMessage = nil
+            state.route = .main
         }
     }
 }
@@ -73,15 +103,23 @@ public struct AppFeatureView: View {
     @State private var state = AppFeatureState()
     private let reducer = AppFeatureReducer()
     private let pipeline: SessionPipeline
+    private let appStorage: LocalAppStorageClient
 
-    public init(pipeline: SessionPipeline = .preview) {
+    public init(
+        pipeline: SessionPipeline = .preview,
+        appStorage: LocalAppStorageClient = .preview
+    ) {
         self.pipeline = pipeline
+        self.appStorage = appStorage
     }
 
     public var body: some View {
         NavigationStack {
             content
                 .navigationBarTitleDisplayMode(.inline)
+        }
+        .task {
+            await restorePersistedState()
         }
     }
 
@@ -125,7 +163,12 @@ public struct AppFeatureView: View {
                         }
                     }
             case .settings:
-                SettingsView {
+                SettingsView(
+                    feedbackFrequency: state.userProfile?.feedbackFrequency ?? .normal,
+                    saveVideoClips: state.saveVideoClips,
+                    onFeedbackFrequencyChange: { send(.feedbackFrequencyChanged($0)) },
+                    onSaveVideoClipsChange: { send(.saveVideoClipsChanged($0)) }
+                ) {
                     send(.deleteLocalData)
                 }
                 .toolbar {
@@ -139,5 +182,64 @@ public struct AppFeatureView: View {
 
     private func send(_ action: AppFeatureAction) {
         reducer.reduce(state: &state, action: action)
+        persistIfNeeded(after: action)
+    }
+
+    @MainActor
+    private func restorePersistedState() async {
+        do {
+            let persistedState = try await appStorage.load()
+            send(.appStorageLoaded(persistedState))
+        } catch {
+            send(.appStorageFailed(error.localizedDescription))
+        }
+    }
+
+    private func persistIfNeeded(after action: AppFeatureAction) {
+        switch action {
+        case .onboardingCompleted,
+             .sessionFinished,
+             .feedbackFrequencyChanged,
+             .saveVideoClipsChanged:
+            let persistedState = state.persistedAppState
+            Task {
+                do {
+                    try await appStorage.save(persistedState)
+                } catch {
+                    await MainActor.run {
+                        send(.appStorageFailed(error.localizedDescription))
+                    }
+                }
+            }
+        case .deleteLocalData:
+            Task {
+                do {
+                    try await appStorage.deleteAll()
+                } catch {
+                    await MainActor.run {
+                        send(.appStorageFailed(error.localizedDescription))
+                    }
+                }
+            }
+        case .appStorageLoaded,
+             .appStorageFailed,
+             .startTraining,
+             .quickStart,
+             .startRecord,
+             .openHistory,
+             .openSettings,
+             .backToMain:
+            break
+        }
+    }
+}
+
+private extension AppFeatureState {
+    var persistedAppState: PersistedAppState {
+        PersistedAppState(
+            userProfile: userProfile,
+            sessions: sessions,
+            saveVideoClips: saveVideoClips
+        )
     }
 }
