@@ -73,6 +73,31 @@ let project = Project(
             dependencies: [
                 .target(name: "TennisDomain")
             ]
+        ),
+        testTarget(
+            name: "AppFeatureTests",
+            sourcePath: "Projects/Feature/AppFeature",
+            dependencies: [
+                .target(name: "AppFeature"),
+                .target(name: "TennisCore"),
+                .target(name: "TennisDomain")
+            ]
+        ),
+        testTarget(
+            name: "RecordFeatureTests",
+            sourcePath: "Projects/Feature/RecordFeature",
+            dependencies: [
+                .target(name: "RecordFeature"),
+                .target(name: "TennisDomain")
+            ]
+        ),
+        testTarget(
+            name: "TrainingSetupFeatureTests",
+            sourcePath: "Projects/Feature/TrainingSetupFeature",
+            dependencies: [
+                .target(name: "TrainingSetupFeature"),
+                .target(name: "TennisDomain")
+            ]
         )
     ]
 )

@@ -5,6 +5,7 @@
 WORKSPACE := TennisCoach.xcworkspace
 APP_SCHEME := TennisCoachApp
 DOMAIN_SCHEME := TennisDomain
+FEATURE_TEST_SCHEMES := AppFeature RecordFeature TrainingSetupFeature
 DERIVED_DATA_PATH ?= /tmp/TennisCoachBuild
 SIMULATOR_NAME ?= iPhone 17
 
@@ -35,14 +36,30 @@ build:
 		-destination 'generic/platform=iOS Simulator' \
 		-derivedDataPath $(DERIVED_DATA_PATH)
 
-## test: Runs domain unit tests on iOS Simulator.
+## test: Runs domain and feature unit tests on iOS Simulator.
 .PHONY: test
-test:
+test: test-domain test-features
+
+## test-domain: Runs domain unit tests on iOS Simulator.
+.PHONY: test-domain
+test-domain:
 	@xcodebuild test \
 		-workspace $(WORKSPACE) \
 		-scheme $(DOMAIN_SCHEME) \
 		-destination 'platform=iOS Simulator,name=$(SIMULATOR_NAME)' \
 		-derivedDataPath $(DERIVED_DATA_PATH)
+
+## test-features: Runs feature unit tests on iOS Simulator.
+.PHONY: test-features
+test-features:
+	@for scheme in $(FEATURE_TEST_SCHEMES); do \
+		echo "Testing $$scheme"; \
+		xcodebuild test \
+			-workspace $(WORKSPACE) \
+			-scheme $$scheme \
+			-destination 'platform=iOS Simulator,name=$(SIMULATOR_NAME)' \
+			-derivedDataPath $(DERIVED_DATA_PATH) || exit $$?; \
+	done
 
 ## clean: Cleans Tuist/Xcode generated files.
 .PHONY: clean
