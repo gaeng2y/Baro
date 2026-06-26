@@ -14,6 +14,17 @@ public enum HistoryAction: Equatable {
     case delete(UUID)
 }
 
+public struct HistoryReducer {
+    public init() {}
+
+    public func reduce(state: inout HistoryState, action: HistoryAction) {
+        switch action {
+        case let .delete(id):
+            state.sessions.removeAll { $0.id == id }
+        }
+    }
+}
+
 public struct HistoryView: View {
     public var sessions: [TrainingSession]
 

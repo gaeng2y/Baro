@@ -21,6 +21,21 @@ public enum SettingsAction: Equatable {
     case deleteLocalData
 }
 
+public struct SettingsReducer {
+    public init() {}
+
+    public func reduce(state: inout SettingsState, action: SettingsAction) {
+        switch action {
+        case let .feedbackFrequencyChanged(frequency):
+            state.feedbackFrequency = frequency
+        case let .saveVideoClipsChanged(isEnabled):
+            state.saveVideoClips = isEnabled
+        case .deleteLocalData:
+            state = SettingsState()
+        }
+    }
+}
+
 public struct SettingsView: View {
     @State private var state: SettingsState
     public var onFeedbackFrequencyChange: (FeedbackFrequency) -> Void

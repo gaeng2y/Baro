@@ -75,6 +75,14 @@ let project = Project(
             ]
         ),
         testTarget(
+            name: "TennisCoreTests",
+            sourcePath: "Projects/Core/TennisCore",
+            dependencies: [
+                .target(name: "TennisCore"),
+                .target(name: "TennisDomain")
+            ]
+        ),
+        testTarget(
             name: "AppFeatureTests",
             sourcePath: "Projects/Feature/AppFeature",
             dependencies: [
@@ -84,10 +92,50 @@ let project = Project(
             ]
         ),
         testTarget(
+            name: "OnboardingFeatureTests",
+            sourcePath: "Projects/Feature/OnboardingFeature",
+            dependencies: [
+                .target(name: "OnboardingFeature"),
+                .target(name: "TennisDomain")
+            ]
+        ),
+        testTarget(
+            name: "MainFeatureTests",
+            sourcePath: "Projects/Feature/MainFeature",
+            dependencies: [
+                .target(name: "MainFeature"),
+                .target(name: "TennisDomain")
+            ]
+        ),
+        testTarget(
             name: "RecordFeatureTests",
             sourcePath: "Projects/Feature/RecordFeature",
             dependencies: [
                 .target(name: "RecordFeature"),
+                .target(name: "TennisDomain")
+            ]
+        ),
+        testTarget(
+            name: "SessionSummaryFeatureTests",
+            sourcePath: "Projects/Feature/SessionSummaryFeature",
+            dependencies: [
+                .target(name: "SessionSummaryFeature"),
+                .target(name: "TennisDomain")
+            ]
+        ),
+        testTarget(
+            name: "HistoryFeatureTests",
+            sourcePath: "Projects/Feature/HistoryFeature",
+            dependencies: [
+                .target(name: "HistoryFeature"),
+                .target(name: "TennisDomain")
+            ]
+        ),
+        testTarget(
+            name: "SettingsFeatureTests",
+            sourcePath: "Projects/Feature/SettingsFeature",
+            dependencies: [
+                .target(name: "SettingsFeature"),
                 .target(name: "TennisDomain")
             ]
         ),

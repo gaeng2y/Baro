@@ -5,7 +5,7 @@
 WORKSPACE := TennisCoach.xcworkspace
 APP_SCHEME := TennisCoachApp
 DOMAIN_SCHEME := TennisDomain
-FEATURE_TEST_SCHEMES := AppFeature RecordFeature TrainingSetupFeature
+FEATURE_TEST_SCHEMES := TennisCore AppFeature OnboardingFeature MainFeature RecordFeature SessionSummaryFeature HistoryFeature SettingsFeature TrainingSetupFeature
 DERIVED_DATA_PATH ?= /tmp/TennisCoachBuild
 SIMULATOR_NAME ?= iPhone 17
 
