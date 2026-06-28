@@ -5,6 +5,7 @@ let bundlePrefix = "co.gaeng2y.tenniscoach"
 let deploymentTargets = DeploymentTargets.iOS("26.0")
 let developmentTeam = localDevelopmentTeam()
 let firebaseSDKVersion = Version(12, 15, 0)
+let composableArchitectureVersion = Version(1, 26, 0)
 
 let project = Project(
     name: "TennisCoach",
@@ -13,6 +14,10 @@ let project = Project(
         .remote(
             url: "https://github.com/firebase/firebase-ios-sdk",
             requirement: .upToNextMajor(from: firebaseSDKVersion)
+        ),
+        .remote(
+            url: "https://github.com/pointfreeco/swift-composable-architecture",
+            requirement: .upToNextMajor(from: composableArchitectureVersion)
         )
     ],
     settings: .settings(
@@ -39,7 +44,8 @@ let project = Project(
                 .target(name: "RecordFeature"),
                 .target(name: "SessionSummaryFeature"),
                 .target(name: "HistoryFeature"),
-                .target(name: "SettingsFeature")
+                .target(name: "SettingsFeature"),
+                .package(product: "ComposableArchitecture")
             ]
         ),
         featureTarget(name: "OnboardingFeature"),
@@ -52,7 +58,8 @@ let project = Project(
                 .target(name: "TennisDomain"),
                 .target(name: "TennisCore"),
                 .target(name: "DesignSystem"),
-                .target(name: "CameraPreviewUI")
+                .target(name: "CameraPreviewUI"),
+                .package(product: "ComposableArchitecture")
             ]
         ),
         featureTarget(name: "SessionSummaryFeature"),
@@ -95,7 +102,8 @@ let project = Project(
             dependencies: [
                 .target(name: "AppFeature"),
                 .target(name: "TennisCore"),
-                .target(name: "TennisDomain")
+                .target(name: "TennisDomain"),
+                .package(product: "ComposableArchitecture")
             ]
         ),
         testTarget(
@@ -103,7 +111,8 @@ let project = Project(
             sourcePath: "Projects/Feature/OnboardingFeature",
             dependencies: [
                 .target(name: "OnboardingFeature"),
-                .target(name: "TennisDomain")
+                .target(name: "TennisDomain"),
+                .package(product: "ComposableArchitecture")
             ]
         ),
         testTarget(
@@ -111,7 +120,8 @@ let project = Project(
             sourcePath: "Projects/Feature/MainFeature",
             dependencies: [
                 .target(name: "MainFeature"),
-                .target(name: "TennisDomain")
+                .target(name: "TennisDomain"),
+                .package(product: "ComposableArchitecture")
             ]
         ),
         testTarget(
@@ -119,7 +129,8 @@ let project = Project(
             sourcePath: "Projects/Feature/RecordFeature",
             dependencies: [
                 .target(name: "RecordFeature"),
-                .target(name: "TennisDomain")
+                .target(name: "TennisDomain"),
+                .package(product: "ComposableArchitecture")
             ]
         ),
         testTarget(
@@ -127,7 +138,8 @@ let project = Project(
             sourcePath: "Projects/Feature/SessionSummaryFeature",
             dependencies: [
                 .target(name: "SessionSummaryFeature"),
-                .target(name: "TennisDomain")
+                .target(name: "TennisDomain"),
+                .package(product: "ComposableArchitecture")
             ]
         ),
         testTarget(
@@ -135,7 +147,8 @@ let project = Project(
             sourcePath: "Projects/Feature/HistoryFeature",
             dependencies: [
                 .target(name: "HistoryFeature"),
-                .target(name: "TennisDomain")
+                .target(name: "TennisDomain"),
+                .package(product: "ComposableArchitecture")
             ]
         ),
         testTarget(
@@ -143,7 +156,8 @@ let project = Project(
             sourcePath: "Projects/Feature/SettingsFeature",
             dependencies: [
                 .target(name: "SettingsFeature"),
-                .target(name: "TennisDomain")
+                .target(name: "TennisDomain"),
+                .package(product: "ComposableArchitecture")
             ]
         ),
         testTarget(
@@ -151,7 +165,8 @@ let project = Project(
             sourcePath: "Projects/Feature/TrainingSetupFeature",
             dependencies: [
                 .target(name: "TrainingSetupFeature"),
-                .target(name: "TennisDomain")
+                .target(name: "TennisDomain"),
+                .package(product: "ComposableArchitecture")
             ]
         )
     ]
@@ -206,7 +221,8 @@ func featureTarget(name: String) -> Target {
         dependencies: [
             .target(name: "TennisDomain"),
             .target(name: "TennisCore"),
-            .target(name: "DesignSystem")
+            .target(name: "DesignSystem"),
+            .package(product: "ComposableArchitecture")
         ]
     )
 }

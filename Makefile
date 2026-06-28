@@ -8,6 +8,7 @@ DOMAIN_SCHEME := TennisDomain
 FEATURE_TEST_SCHEMES := TennisCore AppFeature OnboardingFeature MainFeature RecordFeature SessionSummaryFeature HistoryFeature SettingsFeature TrainingSetupFeature
 DERIVED_DATA_PATH ?= /tmp/TennisCoachBuild
 SIMULATOR_NAME ?= iPhone 17
+XCODEBUILD_FLAGS := -skipMacroValidation -skipPackagePluginValidation
 
 ## setup: Configure Team ID and generate the Xcode workspace. Requires TEAM_ID.
 .PHONY: setup
@@ -31,6 +32,7 @@ generate:
 .PHONY: build
 build:
 	@xcodebuild build \
+		$(XCODEBUILD_FLAGS) \
 		-workspace $(WORKSPACE) \
 		-scheme $(APP_SCHEME) \
 		-destination 'generic/platform=iOS Simulator' \
@@ -44,6 +46,7 @@ test: test-domain test-features
 .PHONY: test-domain
 test-domain:
 	@xcodebuild test \
+		$(XCODEBUILD_FLAGS) \
 		-workspace $(WORKSPACE) \
 		-scheme $(DOMAIN_SCHEME) \
 		-destination 'platform=iOS Simulator,name=$(SIMULATOR_NAME)' \
@@ -55,6 +58,7 @@ test-features:
 	@for scheme in $(FEATURE_TEST_SCHEMES); do \
 		echo "Testing $$scheme"; \
 		xcodebuild test \
+			$(XCODEBUILD_FLAGS) \
 			-workspace $(WORKSPACE) \
 			-scheme $$scheme \
 			-destination 'platform=iOS Simulator,name=$(SIMULATOR_NAME)' \
