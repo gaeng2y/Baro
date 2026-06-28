@@ -1,9 +1,11 @@
 import CameraPreviewUI
+import ComposableArchitecture
 import DesignSystem
 import SwiftUI
 import TennisCore
 import TennisDomain
 
+@ObservableState
 public struct RecordState: Equatable {
     public var strokeType: StrokeType
     public var cameraMode: CameraMode
@@ -16,63 +18,113 @@ public struct RecordState: Equatable {
     public var isSwinging: Bool = false
     public var isRecording: Bool = true
     public var swingEvents: [SwingEvent] = []
+    public var finishedSession: TrainingSession?
 
-    public init(strokeType: StrokeType, cameraMode: CameraMode) {
+    public init(
+        strokeType: StrokeType,
+        cameraMode: CameraMode,
+        startedAt: Date = Date()
+    ) {
         self.strokeType = strokeType
         self.cameraMode = cameraMode
+        self.startedAt = startedAt
     }
 }
 
 public enum RecordAction: Equatable {
+    case task
     case coachingEvent(CoachingEvent)
     case stopSession
 }
 
+@Reducer
 public struct RecordReducer {
-    public init() {}
+    private let pipeline: SessionPipeline
+    private let now: @Sendable () -> Date
+    private let makeID: @Sendable () -> UUID
 
-    public func reduce(state: inout RecordState, action: RecordAction) {
-        switch action {
-        case let .coachingEvent(.bodyDetected(isDetected)):
-            state.isBodyDetected = isDetected
-        case let .coachingEvent(.cameraQualityChanged(quality)):
-            state.cameraQuality = quality
-        case .coachingEvent(.strokeStarted):
-            state.isSwinging = true
-        case let .coachingEvent(.cueSelected(cue)):
-            state.latestCue = cue
-            if let lastIndex = state.swingEvents.indices.last {
-                state.swingEvents[lastIndex].selectedCue = cue
-            }
-        case let .coachingEvent(.strokeFinished(result)):
-            let endedAt = Date().timeIntervalSinceReferenceDate
-            let startedAt = max(0, endedAt - result.metrics.swingDuration)
-            state.isSwinging = false
-            state.swingCount += 1
-            state.analyzedCount += 1
-            state.swingEvents.append(
-                SwingEvent(
-                    strokeType: result.strokeType,
-                    startedAt: startedAt,
-                    endedAt: endedAt,
-                    analysisResult: result,
-                    selectedCue: result.primaryError?.cue,
-                    quality: .success
+    public init(
+        pipeline: SessionPipeline = .preview,
+        now: @escaping @Sendable () -> Date = Date.init,
+        makeID: @escaping @Sendable () -> UUID = UUID.init
+    ) {
+        self.pipeline = pipeline
+        self.now = now
+        self.makeID = makeID
+    }
+
+    public var body: some Reducer<RecordState, RecordAction> {
+        Reduce { state, action in
+            switch action {
+            case .task:
+                let pipeline = self.pipeline
+                let strokeType = state.strokeType
+                return .run { send in
+                    for await event in pipeline.coachingEvents(strokeType: strokeType) {
+                        await send(.coachingEvent(event))
+                    }
+                }
+
+            case let .coachingEvent(event):
+                guard state.isRecording else {
+                    return .none
+                }
+                switch event {
+                case let .bodyDetected(isDetected):
+                    state.isBodyDetected = isDetected
+                case let .cameraQualityChanged(quality):
+                    state.cameraQuality = quality
+                case .strokeStarted:
+                    state.isSwinging = true
+                case let .cueSelected(cue):
+                    state.latestCue = cue
+                    if let lastIndex = state.swingEvents.indices.last {
+                        state.swingEvents[lastIndex].selectedCue = cue
+                    }
+                case let .strokeFinished(result):
+                    let endedAt = now().timeIntervalSinceReferenceDate
+                    let startedAt = max(0, endedAt - result.metrics.swingDuration)
+                    state.isSwinging = false
+                    state.swingCount += 1
+                    state.analyzedCount += 1
+                    state.swingEvents.append(
+                        SwingEvent(
+                            id: makeID(),
+                            strokeType: result.strokeType,
+                            startedAt: startedAt,
+                            endedAt: endedAt,
+                            analysisResult: result,
+                            selectedCue: result.primaryError?.cue,
+                            quality: .success
+                        )
+                    )
+                case let .sessionMetricUpdated(metric):
+                    state.swingCount = max(state.swingCount, metric.swingCount)
+                    state.analyzedCount = max(state.analyzedCount, metric.analyzedCount)
+                }
+                return .none
+
+            case .stopSession:
+                state.isRecording = false
+                let summary = SessionSummaryBuilder.build(from: state.swingEvents)
+                state.finishedSession = TrainingSession(
+                    id: makeID(),
+                    strokeType: state.strokeType,
+                    cameraMode: state.cameraMode,
+                    startedAt: state.startedAt,
+                    endedAt: now(),
+                    swingEvents: state.swingEvents,
+                    summary: summary
                 )
-            )
-        case let .coachingEvent(.sessionMetricUpdated(metric)):
-            state.swingCount = max(state.swingCount, metric.swingCount)
-            state.analyzedCount = max(state.analyzedCount, metric.analyzedCount)
-        case .stopSession:
-            state.isRecording = false
+                return .none
+            }
         }
     }
 }
 
 public struct RecordView: View {
-    @State private var state: RecordState
-    private let reducer = RecordReducer()
-    private let pipeline: SessionPipeline
+    public let store: StoreOf<RecordReducer>
+    private let camera: CameraClient
     public var onStop: (TrainingSession) -> Void
 
     public init(
@@ -81,8 +133,22 @@ public struct RecordView: View {
         pipeline: SessionPipeline = .preview,
         onStop: @escaping (TrainingSession) -> Void
     ) {
-        self._state = State(initialValue: RecordState(strokeType: strokeType, cameraMode: cameraMode))
-        self.pipeline = pipeline
+        self.init(
+            store: Store(initialState: RecordState(strokeType: strokeType, cameraMode: cameraMode)) {
+                RecordReducer(pipeline: pipeline)
+            },
+            camera: pipeline.camera,
+            onStop: onStop
+        )
+    }
+
+    public init(
+        store: StoreOf<RecordReducer>,
+        camera: CameraClient = .preview,
+        onStop: @escaping (TrainingSession) -> Void
+    ) {
+        self.store = store
+        self.camera = camera
         self.onStop = onStop
     }
 
@@ -92,8 +158,8 @@ public struct RecordView: View {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 8) {
-                        StatusCapsule(state.cameraMode.title, tone: .neutral)
-                        Text(state.strokeType.title)
+                        StatusCapsule(store.cameraMode.title, tone: .neutral)
+                        Text(store.strokeType.title)
                             .font(.largeTitle.weight(.heavy))
                         Text("스윙 직후 하나의 cue만 전달합니다.")
                             .font(.headline)
@@ -106,28 +172,28 @@ public struct RecordView: View {
                     )
                 }
 
-                CameraPreviewView(camera: pipeline.camera)
+                CameraPreviewView(camera: camera)
                     .frame(height: 300)
                     .overlay {
                         CameraStatusOverlay(
-                            cameraMode: state.cameraMode,
-                            cameraQuality: state.cameraQuality,
-                            isBodyDetected: state.isBodyDetected,
-                            isSwinging: state.isSwinging
+                            cameraMode: store.cameraMode,
+                            cameraQuality: store.cameraQuality,
+                            isBodyDetected: store.isBodyDetected,
+                            isSwinging: store.isSwinging
                         )
                     }
                     .allowsHitTesting(false)
 
                 HStack {
-                    MetricPill(title: "스윙", value: "\(state.swingCount)")
-                    MetricPill(title: "분석", value: "\(state.analyzedCount)")
+                    MetricPill(title: "스윙", value: "\(store.swingCount)")
+                    MetricPill(title: "분석", value: "\(store.analyzedCount)")
                     MetricPill(title: "상태", value: qualityText)
                 }
 
                 CoachCard {
                     Text("최신 cue")
                         .font(.headline.weight(.heavy))
-                    Text(state.latestCue?.text ?? "스윙 종료 직후 한 가지 cue만 들려줘요.")
+                    Text(store.latestCue?.text ?? "스윙 종료 직후 한 가지 cue만 들려줘요.")
                         .font(.title3.weight(.heavy))
                 }
 
@@ -148,35 +214,32 @@ public struct RecordView: View {
             .padding(20)
         }
         .task {
-            for await event in pipeline.coachingEvents(strokeType: state.strokeType) {
-                guard state.isRecording else { break }
-                send(.coachingEvent(event))
-            }
+            store.send(.task)
         }
     }
 
     private var statusBadgeText: String {
-        if !state.isRecording {
+        if !store.isRecording {
             return "STOP"
         }
-        if state.isSwinging {
+        if store.isSwinging {
             return "SWING"
         }
-        return state.isBodyDetected ? "READY" : "FRAME"
+        return store.isBodyDetected ? "READY" : "FRAME"
     }
 
     private var statusBadgeTone: StatusCapsule.Tone {
-        if !state.isRecording {
+        if !store.isRecording {
             return .neutral
         }
-        if state.isSwinging {
+        if store.isSwinging {
             return .active
         }
-        return state.isBodyDetected ? .active : .warning
+        return store.isBodyDetected ? .active : .warning
     }
 
     private var qualityText: String {
-        switch state.cameraQuality {
+        switch store.cameraQuality {
         case .ready:
             "분석 가능"
         case .bodyOutOfFrame:
@@ -190,23 +253,11 @@ public struct RecordView: View {
         }
     }
 
-    private func send(_ action: RecordAction) {
-        reducer.reduce(state: &state, action: action)
-    }
-
     private func finishSession() {
-        send(.stopSession)
-        let summary = SessionSummaryBuilder.build(from: state.swingEvents)
-        onStop(
-            TrainingSession(
-                strokeType: state.strokeType,
-                cameraMode: state.cameraMode,
-                startedAt: state.startedAt,
-                endedAt: Date(),
-                swingEvents: state.swingEvents,
-                summary: summary
-            )
-        )
+        store.send(.stopSession)
+        if let session = store.finishedSession {
+            onStop(session)
+        }
     }
 }
 

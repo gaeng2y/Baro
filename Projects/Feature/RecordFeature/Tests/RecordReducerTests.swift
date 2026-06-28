@@ -1,11 +1,15 @@
+import ComposableArchitecture
 import XCTest
 @testable import RecordFeature
 import TennisDomain
 
 final class RecordReducerTests: XCTestCase {
-    func testStrokeFinishedAddsAnalyzedSwingEvent() {
-        var state = RecordState(strokeType: .forehand, cameraMode: .side)
-        let reducer = RecordReducer()
+    func testStrokeFinishedAddsAnalyzedSwingEvent() async {
+        let now = Date(timeIntervalSinceReferenceDate: 10)
+        let eventID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+        let store = TestStore(initialState: RecordState(strokeType: .forehand, cameraMode: .side)) {
+            RecordReducer(now: { now }, makeID: { eventID })
+        }
         let cue = CoachingCueCatalog.cue(id: "fh-contact-front")
         let result = SwingAnalysisResult(
             strokeType: .forehand,
@@ -15,21 +19,34 @@ final class RecordReducerTests: XCTestCase {
             primaryError: DetectedError(type: .lateContact, severity: 0.8, cue: cue, phase: .contact),
             metrics: SwingMetrics(swingDuration: 0.8)
         )
+        let event = SwingEvent(
+            id: eventID,
+            strokeType: .forehand,
+            startedAt: 9.2,
+            endedAt: 10,
+            analysisResult: result,
+            selectedCue: cue,
+            quality: .success
+        )
 
-        reducer.reduce(state: &state, action: .coachingEvent(.strokeStarted(.forehand)))
-        reducer.reduce(state: &state, action: .coachingEvent(.strokeFinished(result)))
+        await store.send(.coachingEvent(.strokeStarted(.forehand))) {
+            $0.isSwinging = true
+        }
 
-        XCTAssertFalse(state.isSwinging)
-        XCTAssertEqual(state.swingCount, 1)
-        XCTAssertEqual(state.analyzedCount, 1)
-        XCTAssertEqual(state.swingEvents.count, 1)
-        XCTAssertEqual(state.swingEvents.first?.analysisResult, result)
-        XCTAssertEqual(state.swingEvents.first?.selectedCue, cue)
+        await store.send(.coachingEvent(.strokeFinished(result))) {
+            $0.isSwinging = false
+            $0.swingCount = 1
+            $0.analyzedCount = 1
+            $0.swingEvents = [event]
+        }
     }
 
-    func testCueSelectedUpdatesLatestCueAndLastEvent() {
-        var state = RecordState(strokeType: .forehand, cameraMode: .side)
-        let reducer = RecordReducer()
+    func testCueSelectedUpdatesLatestCueAndLastEvent() async {
+        let now = Date(timeIntervalSinceReferenceDate: 10)
+        let eventID = UUID(uuidString: "00000000-0000-0000-0000-000000000002")!
+        let store = TestStore(initialState: RecordState(strokeType: .forehand, cameraMode: .side)) {
+            RecordReducer(now: { now }, makeID: { eventID })
+        }
         let cue = CoachingCueCatalog.cue(id: "fh-follow-high")
         let result = SwingAnalysisResult(
             strokeType: .forehand,
@@ -37,37 +54,63 @@ final class RecordReducerTests: XCTestCase {
             primaryError: nil,
             metrics: SwingMetrics(swingDuration: 0.8)
         )
-
-        reducer.reduce(state: &state, action: .coachingEvent(.strokeFinished(result)))
-        reducer.reduce(state: &state, action: .coachingEvent(.cueSelected(cue)))
-
-        XCTAssertEqual(state.latestCue, cue)
-        XCTAssertEqual(state.swingEvents.first?.selectedCue, cue)
-    }
-
-    func testSessionMetricNeverMovesCountsBackward() {
-        var state = RecordState(strokeType: .forehand, cameraMode: .side)
-        let reducer = RecordReducer()
-
-        reducer.reduce(
-            state: &state,
-            action: .coachingEvent(.sessionMetricUpdated(SessionMetric(swingCount: 4, analyzedCount: 3)))
-        )
-        reducer.reduce(
-            state: &state,
-            action: .coachingEvent(.sessionMetricUpdated(SessionMetric(swingCount: 2, analyzedCount: 1)))
+        var event = SwingEvent(
+            id: eventID,
+            strokeType: .forehand,
+            startedAt: 9.2,
+            endedAt: 10,
+            analysisResult: result,
+            selectedCue: nil,
+            quality: .success
         )
 
-        XCTAssertEqual(state.swingCount, 4)
-        XCTAssertEqual(state.analyzedCount, 3)
+        await store.send(.coachingEvent(.strokeFinished(result))) {
+            $0.swingCount = 1
+            $0.analyzedCount = 1
+            $0.swingEvents = [event]
+        }
+
+        event.selectedCue = cue
+        await store.send(.coachingEvent(.cueSelected(cue))) {
+            $0.latestCue = cue
+            $0.swingEvents = [event]
+        }
     }
 
-    func testStopSessionDisablesRecording() {
-        var state = RecordState(strokeType: .forehand, cameraMode: .side)
-        let reducer = RecordReducer()
+    func testSessionMetricNeverMovesCountsBackward() async {
+        let store = TestStore(initialState: RecordState(strokeType: .forehand, cameraMode: .side)) {
+            RecordReducer()
+        }
 
-        reducer.reduce(state: &state, action: .stopSession)
+        await store.send(.coachingEvent(.sessionMetricUpdated(SessionMetric(swingCount: 4, analyzedCount: 3)))) {
+            $0.swingCount = 4
+            $0.analyzedCount = 3
+        }
 
-        XCTAssertFalse(state.isRecording)
+        await store.send(.coachingEvent(.sessionMetricUpdated(SessionMetric(swingCount: 2, analyzedCount: 1))))
+    }
+
+    func testStopSessionDisablesRecordingAndBuildsSession() async {
+        let startedAt = Date(timeIntervalSinceReferenceDate: 3)
+        let endedAt = Date(timeIntervalSinceReferenceDate: 12)
+        let sessionID = UUID(uuidString: "00000000-0000-0000-0000-000000000003")!
+        let store = TestStore(
+            initialState: RecordState(strokeType: .forehand, cameraMode: .side, startedAt: startedAt)
+        ) {
+            RecordReducer(now: { endedAt }, makeID: { sessionID })
+        }
+
+        await store.send(.stopSession) {
+            $0.isRecording = false
+            $0.finishedSession = TrainingSession(
+                id: sessionID,
+                strokeType: .forehand,
+                cameraMode: .side,
+                startedAt: startedAt,
+                endedAt: endedAt,
+                swingEvents: [],
+                summary: SessionSummaryBuilder.build(from: [])
+            )
+        }
     }
 }
