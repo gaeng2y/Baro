@@ -1,3 +1,4 @@
+import ComposableArchitecture
 import HistoryFeature
 import MainFeature
 import OnboardingFeature
@@ -30,6 +31,7 @@ public struct AppFeatureState: Equatable {
 }
 
 public enum AppFeatureAction: Equatable {
+    case task
     case appStorageLoaded(PersistedAppState)
     case appStorageFailed(String)
     case onboardingCompleted(UserProfile)
@@ -45,191 +47,222 @@ public enum AppFeatureAction: Equatable {
     case deleteLocalData
 }
 
-public struct AppFeatureReducer {
-    public init() {}
+public struct AppFeatureReducer: Reducer {
+    public typealias State = AppFeatureState
+    public typealias Action = AppFeatureAction
 
-    public func reduce(state: inout AppFeatureState, action: AppFeatureAction) {
-        switch action {
-        case let .appStorageLoaded(persistedState):
-            state.userProfile = persistedState.userProfile
-            state.hasCompletedOnboarding = persistedState.userProfile != nil
-            state.sessions = persistedState.sessions
-            state.saveVideoClips = persistedState.saveVideoClips
-            state.storageErrorMessage = nil
-            state.route = .main
-        case let .appStorageFailed(message):
-            state.storageErrorMessage = message
-        case let .onboardingCompleted(profile):
-            state.userProfile = profile
-            state.hasCompletedOnboarding = true
-            state.storageErrorMessage = nil
-            state.route = .main
-        case .startTraining:
-            state.route = .setup(nil)
-        case let .quickStart(stroke):
-            state.route = .setup(stroke)
-        case let .startRecord(stroke, cameraMode):
-            state.route = .record(stroke, cameraMode)
-        case let .sessionFinished(session):
-            state.sessions.insert(session, at: 0)
-            state.route = .summary(session)
-        case let .feedbackFrequencyChanged(frequency):
-            guard var profile = state.userProfile else {
-                return
+    private let appStorage: LocalAppStorageClient
+    private let now: @Sendable () -> Date
+
+    public init(
+        appStorage: LocalAppStorageClient = .preview,
+        now: @escaping @Sendable () -> Date = Date.init
+    ) {
+        self.appStorage = appStorage
+        self.now = now
+    }
+
+    public var body: some Reducer<AppFeatureState, AppFeatureAction> {
+        Reduce { state, action in
+            switch action {
+            case .task:
+                let appStorage = self.appStorage
+                return .run { send in
+                    do {
+                        let persistedState = try await appStorage.load()
+                        await send(.appStorageLoaded(persistedState))
+                    } catch {
+                        await send(.appStorageFailed(error.localizedDescription))
+                    }
+                }
+
+            case let .appStorageLoaded(persistedState):
+                state.userProfile = persistedState.userProfile
+                state.hasCompletedOnboarding = persistedState.userProfile != nil
+                state.sessions = persistedState.sessions
+                state.saveVideoClips = persistedState.saveVideoClips
+                state.storageErrorMessage = nil
+                state.route = .main
+                return .none
+
+            case let .appStorageFailed(message):
+                state.storageErrorMessage = message
+                return .none
+
+            case let .onboardingCompleted(profile):
+                state.userProfile = profile
+                state.hasCompletedOnboarding = true
+                state.storageErrorMessage = nil
+                state.route = .main
+                return save(state.persistedAppState)
+
+            case .startTraining:
+                state.route = .setup(nil)
+                return .none
+
+            case let .quickStart(stroke):
+                state.route = .setup(stroke)
+                return .none
+
+            case let .startRecord(stroke, cameraMode):
+                state.route = .record(stroke, cameraMode)
+                return .none
+
+            case let .sessionFinished(session):
+                state.sessions.insert(session, at: 0)
+                state.route = .summary(session)
+                return save(state.persistedAppState)
+
+            case let .feedbackFrequencyChanged(frequency):
+                guard var profile = state.userProfile else {
+                    return .none
+                }
+                profile.feedbackFrequency = frequency
+                profile.updatedAt = now()
+                state.userProfile = profile
+                return save(state.persistedAppState)
+
+            case let .saveVideoClipsChanged(isEnabled):
+                state.saveVideoClips = isEnabled
+                return save(state.persistedAppState)
+
+            case .openHistory:
+                state.route = .history
+                return .none
+
+            case .openSettings:
+                state.route = .settings
+                return .none
+
+            case .backToMain:
+                state.route = .main
+                return .none
+
+            case .deleteLocalData:
+                state.hasCompletedOnboarding = false
+                state.userProfile = nil
+                state.sessions = []
+                state.saveVideoClips = false
+                state.storageErrorMessage = nil
+                state.route = .main
+                return deleteLocalData()
             }
-            profile.feedbackFrequency = frequency
-            profile.updatedAt = Date()
-            state.userProfile = profile
-        case let .saveVideoClipsChanged(isEnabled):
-            state.saveVideoClips = isEnabled
-        case .openHistory:
-            state.route = .history
-        case .openSettings:
-            state.route = .settings
-        case .backToMain:
-            state.route = .main
-        case .deleteLocalData:
-            state.hasCompletedOnboarding = false
-            state.userProfile = nil
-            state.sessions = []
-            state.saveVideoClips = false
-            state.storageErrorMessage = nil
-            state.route = .main
+        }
+    }
+
+    private func save(_ persistedState: PersistedAppState) -> Effect<AppFeatureAction> {
+        let appStorage = appStorage
+        return .run { send in
+            do {
+                try await appStorage.save(persistedState)
+            } catch {
+                await send(.appStorageFailed(error.localizedDescription))
+            }
+        }
+    }
+
+    private func deleteLocalData() -> Effect<AppFeatureAction> {
+        let appStorage = appStorage
+        return .run { send in
+            do {
+                try await appStorage.deleteAll()
+            } catch {
+                await send(.appStorageFailed(error.localizedDescription))
+            }
         }
     }
 }
 
 public struct AppFeatureView: View {
-    @State private var state = AppFeatureState()
-    private let reducer = AppFeatureReducer()
+    public let store: StoreOf<AppFeatureReducer>
     private let pipeline: SessionPipeline
-    private let appStorage: LocalAppStorageClient
 
     public init(
         pipeline: SessionPipeline = .preview,
         appStorage: LocalAppStorageClient = .preview
     ) {
+        self.init(
+            store: Store(initialState: AppFeatureState()) {
+                AppFeatureReducer(appStorage: appStorage)
+            },
+            pipeline: pipeline
+        )
+    }
+
+    public init(
+        store: StoreOf<AppFeatureReducer>,
+        pipeline: SessionPipeline = .preview
+    ) {
+        self.store = store
         self.pipeline = pipeline
-        self.appStorage = appStorage
     }
 
     public var body: some View {
         NavigationStack {
-            content
-                .navigationBarTitleDisplayMode(.inline)
+            WithViewStore(store, observe: { $0 }) { viewStore in
+                content(viewStore)
+                    .navigationBarTitleDisplayMode(.inline)
+            }
         }
         .task {
-            await restorePersistedState()
+            store.send(.task)
         }
     }
 
     @ViewBuilder
-    private var content: some View {
-        if !state.hasCompletedOnboarding {
+    private func content(_ viewStore: ViewStore<AppFeatureState, AppFeatureAction>) -> some View {
+        if !viewStore.hasCompletedOnboarding {
             OnboardingView { profile in
-                send(.onboardingCompleted(profile))
+                viewStore.send(.onboardingCompleted(profile))
             }
         } else {
-            switch state.route {
+            switch viewStore.route {
             case .main:
                 MainView(
-                    onStartTraining: { send(.startTraining) },
-                    onQuickStart: { send(.quickStart($0)) },
-                    onHistory: { send(.openHistory) },
-                    onSettings: { send(.openSettings) }
+                    onStartTraining: { viewStore.send(.startTraining) },
+                    onQuickStart: { viewStore.send(.quickStart($0)) },
+                    onHistory: { viewStore.send(.openHistory) },
+                    onSettings: { viewStore.send(.openSettings) }
                 )
             case let .setup(initialStroke):
                 TrainingSetupView(initialStrokeType: initialStroke ?? .forehand) { stroke, cameraMode in
-                    send(.startRecord(stroke, cameraMode))
+                    viewStore.send(.startRecord(stroke, cameraMode))
                 }
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
-                        Button("닫기") { send(.backToMain) }
+                        Button("닫기") { viewStore.send(.backToMain) }
                     }
                 }
             case let .record(stroke, cameraMode):
                 RecordView(strokeType: stroke, cameraMode: cameraMode, pipeline: pipeline) { session in
-                    send(.sessionFinished(session))
+                    viewStore.send(.sessionFinished(session))
                 }
             case let .summary(session):
                 SessionSummaryView(session: session) {
-                    send(.backToMain)
+                    viewStore.send(.backToMain)
                 }
             case .history:
-                HistoryView(sessions: state.sessions)
+                HistoryView(sessions: viewStore.sessions)
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
-                            Button("닫기") { send(.backToMain) }
+                            Button("닫기") { viewStore.send(.backToMain) }
                         }
                     }
             case .settings:
                 SettingsView(
-                    feedbackFrequency: state.userProfile?.feedbackFrequency ?? .normal,
-                    saveVideoClips: state.saveVideoClips,
-                    onFeedbackFrequencyChange: { send(.feedbackFrequencyChanged($0)) },
-                    onSaveVideoClipsChange: { send(.saveVideoClipsChanged($0)) }
+                    feedbackFrequency: viewStore.userProfile?.feedbackFrequency ?? .normal,
+                    saveVideoClips: viewStore.saveVideoClips,
+                    onFeedbackFrequencyChange: { viewStore.send(.feedbackFrequencyChanged($0)) },
+                    onSaveVideoClipsChange: { viewStore.send(.saveVideoClipsChanged($0)) }
                 ) {
-                    send(.deleteLocalData)
+                    viewStore.send(.deleteLocalData)
                 }
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
-                        Button("닫기") { send(.backToMain) }
+                        Button("닫기") { viewStore.send(.backToMain) }
                     }
                 }
             }
-        }
-    }
-
-    private func send(_ action: AppFeatureAction) {
-        reducer.reduce(state: &state, action: action)
-        persistIfNeeded(after: action)
-    }
-
-    @MainActor
-    private func restorePersistedState() async {
-        do {
-            let persistedState = try await appStorage.load()
-            send(.appStorageLoaded(persistedState))
-        } catch {
-            send(.appStorageFailed(error.localizedDescription))
-        }
-    }
-
-    private func persistIfNeeded(after action: AppFeatureAction) {
-        switch action {
-        case .onboardingCompleted,
-             .sessionFinished,
-             .feedbackFrequencyChanged,
-             .saveVideoClipsChanged:
-            let persistedState = state.persistedAppState
-            Task {
-                do {
-                    try await appStorage.save(persistedState)
-                } catch {
-                    await MainActor.run {
-                        send(.appStorageFailed(error.localizedDescription))
-                    }
-                }
-            }
-        case .deleteLocalData:
-            Task {
-                do {
-                    try await appStorage.deleteAll()
-                } catch {
-                    await MainActor.run {
-                        send(.appStorageFailed(error.localizedDescription))
-                    }
-                }
-            }
-        case .appStorageLoaded,
-             .appStorageFailed,
-             .startTraining,
-             .quickStart,
-             .startRecord,
-             .openHistory,
-             .openSettings,
-             .backToMain:
-            break
         }
     }
 }
