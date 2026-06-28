@@ -2,16 +2,23 @@ import ProjectDescription
 import Foundation
 
 let bundlePrefix = "co.gaeng2y.tenniscoach"
-let deploymentTargets = DeploymentTargets.iOS("17.0")
+let deploymentTargets = DeploymentTargets.iOS("26.0")
 let developmentTeam = localDevelopmentTeam()
+let firebaseSDKVersion = Version(12, 15, 0)
 
 let project = Project(
     name: "TennisCoach",
     organizationName: "TennisCoach",
+    packages: [
+        .remote(
+            url: "https://github.com/firebase/firebase-ios-sdk",
+            requirement: .upToNextMajor(from: firebaseSDKVersion)
+        )
+    ],
     settings: .settings(
         base: [
             "SWIFT_VERSION": .string("6.0"),
-            "IPHONEOS_DEPLOYMENT_TARGET": .string("17.0"),
+            "IPHONEOS_DEPLOYMENT_TARGET": .string("26.0"),
             "ENABLE_USER_SCRIPT_SANDBOXING": .string("YES"),
             "CODE_SIGN_STYLE": .string("Automatic"),
             "DEVELOPMENT_TEAM": .string(developmentTeam)
@@ -155,10 +162,11 @@ func appTarget() -> Target {
         name: "TennisCoachApp",
         destinations: .iOS,
         product: .app,
-        bundleId: "\(bundlePrefix).app",
+        bundleId: bundlePrefix,
         deploymentTargets: deploymentTargets,
         infoPlist: .extendingDefault(with: [
             "CFBundleDisplayName": "TennisCoach",
+            "FirebaseAppDelegateProxyEnabled": false,
             "NSCameraUsageDescription": "TennisCoach analyzes your tennis form on device using the camera.",
             "UISupportedInterfaceOrientations": [
                 "UIInterfaceOrientationPortrait",
@@ -170,7 +178,9 @@ func appTarget() -> Target {
         sources: ["Projects/App/TennisCoachApp/Sources/**"],
         resources: ["Projects/App/TennisCoachApp/Resources/**"],
         dependencies: [
-            .target(name: "AppFeature")
+            .target(name: "AppFeature"),
+            .package(product: "FirebaseCore"),
+            .package(product: "FirebaseAnalyticsCore")
         ]
     )
 }

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyCp-wZnoh7IZt5P6ZijdQWUZGHo_uRLA-E</string>
+	<key>GCM_SENDER_ID</key>
+	<string>436405491950</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>co.gaeng2y.tenniscoach</string>
+	<key>PROJECT_ID</key>
+	<string>tennis-baro</string>
+	<key>STORAGE_BUCKET</key>
+	<string>tennis-baro.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:436405491950:ios:5d280f5e21106fd020fbff</string>
+</dict>
+</plist>
