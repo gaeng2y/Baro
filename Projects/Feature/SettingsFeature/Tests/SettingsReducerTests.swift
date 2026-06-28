@@ -3,6 +3,7 @@ import XCTest
 @testable import SettingsFeature
 import TennisDomain
 
+@MainActor
 final class SettingsReducerTests: XCTestCase {
     func testFeedbackFrequencyChangedUpdatesState() async {
         let store = TestStore(initialState: SettingsState()) {

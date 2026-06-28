@@ -5,7 +5,6 @@ import SwiftUI
 import TennisCore
 import TennisDomain
 
-@ObservableState
 public struct RecordState: Equatable {
     public var strokeType: StrokeType
     public var cameraMode: CameraMode
@@ -37,8 +36,10 @@ public enum RecordAction: Equatable {
     case stopSession
 }
 
-@Reducer
-public struct RecordReducer {
+public struct RecordReducer: Reducer {
+    public typealias State = RecordState
+    public typealias Action = RecordAction
+
     private let pipeline: SessionPipeline
     private let now: @Sendable () -> Date
     private let makeID: @Sendable () -> UUID
@@ -153,93 +154,95 @@ public struct RecordView: View {
     }
 
     public var body: some View {
-        ZStack {
-            LiquidGlassBackground()
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        StatusCapsule(store.cameraMode.title, tone: .neutral)
-                        Text(store.strokeType.title)
-                            .font(.largeTitle.weight(.heavy))
-                        Text("스윙 직후 하나의 cue만 전달합니다.")
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    StatusCapsule(
-                        statusBadgeText,
-                        tone: statusBadgeTone
-                    )
-                }
-
-                CameraPreviewView(camera: camera)
-                    .frame(height: 300)
-                    .overlay {
-                        CameraStatusOverlay(
-                            cameraMode: store.cameraMode,
-                            cameraQuality: store.cameraQuality,
-                            isBodyDetected: store.isBodyDetected,
-                            isSwinging: store.isSwinging
+        WithViewStore(store, observe: { $0 }) { viewStore in
+            ZStack {
+                LiquidGlassBackground()
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            StatusCapsule(viewStore.cameraMode.title, tone: .neutral)
+                            Text(viewStore.strokeType.title)
+                                .font(.largeTitle.weight(.heavy))
+                            Text("스윙 직후 하나의 cue만 전달합니다.")
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        StatusCapsule(
+                            statusBadgeText(for: viewStore.state),
+                            tone: statusBadgeTone(for: viewStore.state)
                         )
                     }
-                    .allowsHitTesting(false)
 
-                HStack {
-                    MetricPill(title: "스윙", value: "\(store.swingCount)")
-                    MetricPill(title: "분석", value: "\(store.analyzedCount)")
-                    MetricPill(title: "상태", value: qualityText)
+                    CameraPreviewView(camera: camera)
+                        .frame(height: 300)
+                        .overlay {
+                            CameraStatusOverlay(
+                                cameraMode: viewStore.cameraMode,
+                                cameraQuality: viewStore.cameraQuality,
+                                isBodyDetected: viewStore.isBodyDetected,
+                                isSwinging: viewStore.isSwinging
+                            )
+                        }
+                        .allowsHitTesting(false)
+
+                    HStack {
+                        MetricPill(title: "스윙", value: "\(viewStore.swingCount)")
+                        MetricPill(title: "분석", value: "\(viewStore.analyzedCount)")
+                        MetricPill(title: "상태", value: qualityText(for: viewStore.cameraQuality))
+                    }
+
+                    CoachCard {
+                        Text("최신 cue")
+                            .font(.headline.weight(.heavy))
+                        Text(viewStore.latestCue?.text ?? "스윙 종료 직후 한 가지 cue만 들려줘요.")
+                            .font(.title3.weight(.heavy))
+                    }
+
+                    Button(role: .destructive) {
+                        finishSession(viewStore)
+                    } label: {
+                        Text("세션 종료")
+                            .font(.headline.weight(.bold))
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: 50)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+                    .tint(.red)
+
+                    Spacer()
                 }
-
-                CoachCard {
-                    Text("최신 cue")
-                        .font(.headline.weight(.heavy))
-                    Text(store.latestCue?.text ?? "스윙 종료 직후 한 가지 cue만 들려줘요.")
-                        .font(.title3.weight(.heavy))
-                }
-
-                Button(role: .destructive) {
-                    finishSession()
-                } label: {
-                    Text("세션 종료")
-                        .font(.headline.weight(.bold))
-                        .frame(maxWidth: .infinity)
-                        .frame(minHeight: 50)
-                }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
-                .tint(.red)
-
-                Spacer()
+                .padding(20)
             }
-            .padding(20)
-        }
-        .task {
-            store.send(.task)
+            .task {
+                viewStore.send(.task)
+            }
         }
     }
 
-    private var statusBadgeText: String {
-        if !store.isRecording {
+    private func statusBadgeText(for state: RecordState) -> String {
+        if !state.isRecording {
             return "STOP"
         }
-        if store.isSwinging {
+        if state.isSwinging {
             return "SWING"
         }
-        return store.isBodyDetected ? "READY" : "FRAME"
+        return state.isBodyDetected ? "READY" : "FRAME"
     }
 
-    private var statusBadgeTone: StatusCapsule.Tone {
-        if !store.isRecording {
+    private func statusBadgeTone(for state: RecordState) -> StatusCapsule.Tone {
+        if !state.isRecording {
             return .neutral
         }
-        if store.isSwinging {
+        if state.isSwinging {
             return .active
         }
-        return store.isBodyDetected ? .active : .warning
+        return state.isBodyDetected ? .active : .warning
     }
 
-    private var qualityText: String {
-        switch store.cameraQuality {
+    private func qualityText(for quality: CameraQuality) -> String {
+        switch quality {
         case .ready:
             "분석 가능"
         case .bodyOutOfFrame:
@@ -253,9 +256,9 @@ public struct RecordView: View {
         }
     }
 
-    private func finishSession() {
-        store.send(.stopSession)
-        if let session = store.finishedSession {
+    private func finishSession(_ viewStore: ViewStore<RecordState, RecordAction>) {
+        viewStore.send(.stopSession)
+        if let session = viewStore.finishedSession {
             onStop(session)
         }
     }

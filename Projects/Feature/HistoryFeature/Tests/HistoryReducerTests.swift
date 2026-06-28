@@ -3,6 +3,7 @@ import XCTest
 @testable import HistoryFeature
 import TennisDomain
 
+@MainActor
 final class HistoryReducerTests: XCTestCase {
     func testDeleteRemovesMatchingSession() async {
         let first = TrainingSession(id: UUID(), strokeType: .forehand, cameraMode: .side)

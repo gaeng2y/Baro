@@ -3,7 +3,6 @@ import DesignSystem
 import SwiftUI
 import TennisDomain
 
-@ObservableState
 public struct TrainingSetupState: Equatable {
     public var strokeType: StrokeType = .forehand
     public var cameraMode: CameraMode = .side
@@ -53,8 +52,10 @@ public enum TrainingSetupAction: Equatable {
     case start
 }
 
-@Reducer
-public struct TrainingSetupReducer {
+public struct TrainingSetupReducer: Reducer {
+    public typealias State = TrainingSetupState
+    public typealias Action = TrainingSetupAction
+
     public init() {}
 
     public var body: some Reducer<TrainingSetupState, TrainingSetupAction> {
@@ -124,97 +125,109 @@ public struct TrainingSetupView: View {
     }
 
     public var body: some View {
-        ZStack {
-            LiquidGlassBackground()
-            VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 8) {
-                    StatusCapsule("SETUP", tone: .neutral)
-                    Text("훈련 설정")
-                        .font(.largeTitle.weight(.heavy))
-                }
-
-                CoachCard {
-                    Text("동작")
-                        .font(.headline.weight(.heavy))
-                    Picker("동작", selection: strokeTypeBinding) {
-                        ForEach(StrokeType.allCases) { stroke in
-                            Text(stroke.title).tag(stroke)
-                        }
+        WithViewStore(store, observe: { $0 }) { viewStore in
+            ZStack {
+                LiquidGlassBackground()
+                VStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        StatusCapsule("SETUP", tone: .neutral)
+                        Text("훈련 설정")
+                            .font(.largeTitle.weight(.heavy))
                     }
-                    .pickerStyle(.segmented)
-                }
 
-                CoachCard {
-                    Text("촬영 모드")
-                        .font(.headline.weight(.heavy))
-                    Picker("촬영 모드", selection: cameraModeBinding) {
-                        ForEach(CameraMode.allCases) { mode in
-                            Text(mode.title).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    Text(cameraGuide)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-
-                CoachCard {
-                    HStack {
-                        Text("카메라 체크")
+                    CoachCard {
+                        Text("동작")
                             .font(.headline.weight(.heavy))
-                        Spacer()
-                        StatusCapsule(readinessTitle, tone: store.isReadyToStart ? .active : .warning)
+                        Picker("동작", selection: strokeTypeBinding(viewStore)) {
+                            ForEach(StrokeType.allCases) { stroke in
+                                Text(stroke.title).tag(stroke)
+                            }
+                        }
+                        .pickerStyle(.segmented)
                     }
 
-                    VStack(spacing: 10) {
-                        SetupCheckRow(
-                            title: "전신 프레임",
-                            detail: "라켓과 발까지 화면 안에 들어와요.",
-                            systemImage: "figure.tennis",
-                            isComplete: store.isBodyInFrame
-                        ) {
-                            store.send(.bodyInFrameToggled)
+                    CoachCard {
+                        Text("촬영 모드")
+                            .font(.headline.weight(.heavy))
+                        Picker("촬영 모드", selection: cameraModeBinding(viewStore)) {
+                            ForEach(CameraMode.allCases) { mode in
+                                Text(mode.title).tag(mode)
+                            }
                         }
-                        SetupCheckRow(
-                            title: "충분한 조명",
-                            detail: "얼굴과 관절이 그림자 없이 보여요.",
-                            systemImage: "lightbulb.max.fill",
-                            isComplete: store.hasEnoughLight
-                        ) {
-                            store.send(.enoughLightToggled)
-                        }
-                        SetupCheckRow(
-                            title: "고정된 iPhone",
-                            detail: "삼각대나 거치대로 흔들림을 줄였어요.",
-                            systemImage: "iphone.gen3.radiowaves.left.and.right",
-                            isComplete: store.isPhoneStable
-                        ) {
-                            store.send(.phoneStableToggled)
-                        }
+                        .pickerStyle(.segmented)
+                        Text(cameraGuide(for: viewStore.cameraMode))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
                     }
 
-                    Label(readinessGuide, systemImage: readinessIconName)
+                    CoachCard {
+                        HStack {
+                            Text("카메라 체크")
+                                .font(.headline.weight(.heavy))
+                            Spacer()
+                            StatusCapsule(
+                                readinessTitle(isReadyToStart: viewStore.isReadyToStart),
+                                tone: viewStore.isReadyToStart ? .active : .warning
+                            )
+                        }
+
+                        VStack(spacing: 10) {
+                            SetupCheckRow(
+                                title: "전신 프레임",
+                                detail: "라켓과 발까지 화면 안에 들어와요.",
+                                systemImage: "figure.tennis",
+                                isComplete: viewStore.isBodyInFrame
+                            ) {
+                                viewStore.send(.bodyInFrameToggled)
+                            }
+                            SetupCheckRow(
+                                title: "충분한 조명",
+                                detail: "얼굴과 관절이 그림자 없이 보여요.",
+                                systemImage: "lightbulb.max.fill",
+                                isComplete: viewStore.hasEnoughLight
+                            ) {
+                                viewStore.send(.enoughLightToggled)
+                            }
+                            SetupCheckRow(
+                                title: "고정된 iPhone",
+                                detail: "삼각대나 거치대로 흔들림을 줄였어요.",
+                                systemImage: "iphone.gen3.radiowaves.left.and.right",
+                                isComplete: viewStore.isPhoneStable
+                            ) {
+                                viewStore.send(.phoneStableToggled)
+                            }
+                        }
+
+                        Label(
+                            readinessGuide(for: viewStore.cameraQuality),
+                            systemImage: readinessIconName(isReadyToStart: viewStore.isReadyToStart)
+                        )
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(store.isReadyToStart ? CoachTheme.tennisTint : .secondary)
-                }
+                        .foregroundStyle(viewStore.isReadyToStart ? CoachTheme.tennisTint : .secondary)
+                    }
 
-                PrimaryCoachButton("세션 시작") {
-                    guard store.isReadyToStart else { return }
-                    store.send(.start)
-                    onStart(store.strokeType, store.cameraMode)
-                }
-                .disabled(!store.isReadyToStart)
-                .opacity(store.isReadyToStart ? 1 : 0.42)
-                .accessibilityHint(store.isReadyToStart ? "훈련 세션을 시작합니다." : "카메라 체크 항목을 모두 완료해야 시작할 수 있습니다.")
+                    PrimaryCoachButton("세션 시작") {
+                        guard viewStore.isReadyToStart else { return }
+                        viewStore.send(.start)
+                        onStart(viewStore.strokeType, viewStore.cameraMode)
+                    }
+                    .disabled(!viewStore.isReadyToStart)
+                    .opacity(viewStore.isReadyToStart ? 1 : 0.42)
+                    .accessibilityHint(
+                        viewStore.isReadyToStart
+                            ? "훈련 세션을 시작합니다."
+                            : "카메라 체크 항목을 모두 완료해야 시작할 수 있습니다."
+                    )
 
-                Spacer()
+                    Spacer()
+                }
+                .padding(20)
             }
-            .padding(20)
         }
     }
 
-    private var cameraGuide: String {
-        switch store.cameraMode {
+    private func cameraGuide(for mode: CameraMode) -> String {
+        switch mode {
         case .side:
             "측면에서 어깨 회전과 임팩트 위치를 보기 좋게 세팅하세요."
         case .rearDiagonal:
@@ -222,12 +235,12 @@ public struct TrainingSetupView: View {
         }
     }
 
-    private var readinessTitle: String {
-        store.isReadyToStart ? "시작 가능" : "체크 필요"
+    private func readinessTitle(isReadyToStart: Bool) -> String {
+        isReadyToStart ? "시작 가능" : "체크 필요"
     }
 
-    private var readinessGuide: String {
-        switch store.cameraQuality {
+    private func readinessGuide(for quality: CameraQuality) -> String {
+        switch quality {
         case .ready:
             "촬영 조건이 준비됐어요. 이제 세션을 시작할 수 있습니다."
         case .bodyOutOfFrame:
@@ -241,21 +254,25 @@ public struct TrainingSetupView: View {
         }
     }
 
-    private var readinessIconName: String {
-        store.isReadyToStart ? "checkmark.seal.fill" : "exclamationmark.triangle.fill"
+    private func readinessIconName(isReadyToStart: Bool) -> String {
+        isReadyToStart ? "checkmark.seal.fill" : "exclamationmark.triangle.fill"
     }
 
-    private var strokeTypeBinding: Binding<StrokeType> {
-        Binding(
-            get: { store.strokeType },
-            set: { store.send(.strokeChanged($0)) }
+    private func strokeTypeBinding(
+        _ viewStore: ViewStore<TrainingSetupState, TrainingSetupAction>
+    ) -> Binding<StrokeType> {
+        viewStore.binding(
+            get: \.strokeType,
+            send: TrainingSetupAction.strokeChanged
         )
     }
 
-    private var cameraModeBinding: Binding<CameraMode> {
-        Binding(
-            get: { store.cameraMode },
-            set: { store.send(.cameraModeChanged($0)) }
+    private func cameraModeBinding(
+        _ viewStore: ViewStore<TrainingSetupState, TrainingSetupAction>
+    ) -> Binding<CameraMode> {
+        viewStore.binding(
+            get: \.cameraMode,
+            send: TrainingSetupAction.cameraModeChanged
         )
     }
 }

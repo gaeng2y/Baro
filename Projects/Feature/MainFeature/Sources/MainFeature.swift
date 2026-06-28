@@ -3,7 +3,6 @@ import DesignSystem
 import SwiftUI
 import TennisDomain
 
-@ObservableState
 public struct MainFeatureState: Equatable {
     public var recentSummary: SessionSummary?
 
@@ -19,8 +18,10 @@ public enum MainFeatureAction: Equatable {
     case openSettings
 }
 
-@Reducer
-public struct MainFeatureReducer {
+public struct MainFeatureReducer: Reducer {
+    public typealias State = MainFeatureState
+    public typealias Action = MainFeatureAction
+
     public init() {}
 
     public var body: some Reducer<MainFeatureState, MainFeatureAction> {

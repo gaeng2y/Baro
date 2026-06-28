@@ -3,7 +3,6 @@ import DesignSystem
 import SwiftUI
 import TennisDomain
 
-@ObservableState
 public struct SessionSummaryFeatureState: Equatable {
     public var session: TrainingSession
 
@@ -18,8 +17,10 @@ public enum SessionSummaryFeatureAction: Equatable {
     case done
 }
 
-@Reducer
-public struct SessionSummaryFeatureReducer {
+public struct SessionSummaryFeatureReducer: Reducer {
+    public typealias State = SessionSummaryFeatureState
+    public typealias Action = SessionSummaryFeatureAction
+
     public init() {}
 
     public var body: some Reducer<SessionSummaryFeatureState, SessionSummaryFeatureAction> {
@@ -51,113 +52,120 @@ public struct SessionSummaryView: View {
     }
 
     public var body: some View {
-        ZStack {
-            LiquidGlassBackground()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        StatusCapsule("SESSION SUMMARY", tone: .active)
-                        Text("세션 요약")
-                            .font(.largeTitle.weight(.heavy))
-                    }
-
-                    HStack {
-                        MetricPill(title: "총 스윙", value: "\(summary.totalSwingCount)")
-                        MetricPill(title: "분석 성공", value: "\(summary.analyzedSwingCount)")
-                        MetricPill(title: "제외", value: "\(summary.failedSwingCount)")
-                    }
-
-                    CoachCard {
-                        HStack {
-                            Text("이번 세션 핵심")
-                                .font(.headline.weight(.heavy))
-                            Spacer()
-                            StatusCapsule(focusBadge, tone: summary.recommendedFocus == nil ? .warning : .active)
+        WithViewStore(store, observe: { $0 }) { viewStore in
+            let summary = summary(for: viewStore.session)
+            let topError = topError(in: summary)
+            ZStack {
+                LiquidGlassBackground()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            StatusCapsule("SESSION SUMMARY", tone: .active)
+                            Text("세션 요약")
+                                .font(.largeTitle.weight(.heavy))
                         }
 
-                        Text(summary.recommendedFocus?.text ?? "분석 가능한 스윙을 더 모으면 핵심 cue를 추천할 수 있어요.")
-                            .font(.title2.weight(.heavy))
-                            .foregroundStyle(CoachTheme.primaryText)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        Text(focusGuide)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    CoachCard {
                         HStack {
-                            Text("반복 오류")
-                                .font(.headline.weight(.heavy))
-                            Spacer()
-                            StatusCapsule(analysisRateText, tone: .neutral)
+                            MetricPill(title: "총 스윙", value: "\(summary.totalSwingCount)")
+                            MetricPill(title: "분석 성공", value: "\(summary.analyzedSwingCount)")
+                            MetricPill(title: "제외", value: "\(summary.failedSwingCount)")
                         }
 
-                        if summary.repeatedErrors.isEmpty {
-                            Text("아직 분석 가능한 반복 오류가 부족합니다.")
+                        CoachCard {
+                            HStack {
+                                Text("이번 세션 핵심")
+                                    .font(.headline.weight(.heavy))
+                                Spacer()
+                                StatusCapsule(
+                                    focusBadge(topError: topError),
+                                    tone: summary.recommendedFocus == nil ? .warning : .active
+                                )
+                            }
+
+                            Text(summary.recommendedFocus?.text ?? "분석 가능한 스윙을 더 모으면 핵심 cue를 추천할 수 있어요.")
+                                .font(.title2.weight(.heavy))
+                                .foregroundStyle(CoachTheme.primaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+
+                            Text(focusGuide(topError: topError))
+                                .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.secondary)
-                        } else {
-                            VStack(spacing: 10) {
-                                ForEach(rankedErrors) { rankedError in
-                                    RepeatedErrorRow(
-                                        rank: rankedError.rank,
-                                        error: rankedError.error,
-                                        analyzedSwingCount: summary.analyzedSwingCount
-                                    )
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        CoachCard {
+                            HStack {
+                                Text("반복 오류")
+                                    .font(.headline.weight(.heavy))
+                                Spacer()
+                                StatusCapsule(analysisRateText(for: summary), tone: .neutral)
+                            }
+
+                            if summary.repeatedErrors.isEmpty {
+                                Text("아직 분석 가능한 반복 오류가 부족합니다.")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                VStack(spacing: 10) {
+                                    ForEach(rankedErrors(in: summary)) { rankedError in
+                                        RepeatedErrorRow(
+                                            rank: rankedError.rank,
+                                            error: rankedError.error,
+                                            analyzedSwingCount: summary.analyzedSwingCount
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    CoachCard {
-                        Text("다음 세션 목표")
-                            .font(.headline.weight(.heavy))
-                        Text(nextSessionGoal)
-                            .font(.title3.weight(.heavy))
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                        CoachCard {
+                            Text("다음 세션 목표")
+                                .font(.headline.weight(.heavy))
+                            Text(nextSessionGoal(for: summary))
+                                .font(.title3.weight(.heavy))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
 
-                    PrimaryCoachButton("완료") {
-                        store.send(.done)
-                        onDone()
+                        PrimaryCoachButton("완료") {
+                            viewStore.send(.done)
+                            onDone()
+                        }
                     }
+                    .padding(20)
                 }
-                .padding(20)
             }
         }
     }
 
-    private var summary: SessionSummary {
-        store.session.summary ?? SessionSummaryBuilder.build(from: store.session.swingEvents)
+    private func summary(for session: TrainingSession) -> SessionSummary {
+        session.summary ?? SessionSummaryBuilder.build(from: session.swingEvents)
     }
 
-    private var topError: ErrorCount? {
+    private func topError(in summary: SessionSummary) -> ErrorCount? {
         summary.repeatedErrors.first
     }
 
-    private var focusBadge: String {
+    private func focusBadge(topError: ErrorCount?) -> String {
         if let topError {
             return "\(topError.count)회 반복"
         }
         return "데이터 부족"
     }
 
-    private var focusGuide: String {
+    private func focusGuide(topError: ErrorCount?) -> String {
         guard topError != nil else {
             return "전신 프레임을 맞추고 10회 이상 스윙하면 반복 패턴을 더 안정적으로 잡을 수 있습니다."
         }
         return "다음 세션 첫 10회는 다른 피드백보다 이 cue 하나에만 집중하세요."
     }
 
-    private var nextSessionGoal: String {
+    private func nextSessionGoal(for summary: SessionSummary) -> String {
         guard let recommendedFocus = summary.recommendedFocus else {
             return "전신이 화면에 들어오게 세팅하고 10회 이상 스윙해보세요."
         }
         return "첫 랠리 전 \(recommendedFocus.text)"
     }
 
-    private var analysisRateText: String {
+    private func analysisRateText(for summary: SessionSummary) -> String {
         guard summary.totalSwingCount > 0 else {
             return "0%"
         }
@@ -165,7 +173,7 @@ public struct SessionSummaryView: View {
         return "\(Int((rate * 100).rounded()))%"
     }
 
-    private var rankedErrors: [RankedError] {
+    private func rankedErrors(in summary: SessionSummary) -> [RankedError] {
         summary.repeatedErrors.enumerated().map { index, error in
             RankedError(rank: index + 1, error: error)
         }

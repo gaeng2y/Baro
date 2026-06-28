@@ -3,7 +3,6 @@ import DesignSystem
 import SwiftUI
 import TennisDomain
 
-@ObservableState
 public struct SettingsState: Equatable {
     public var feedbackFrequency: FeedbackFrequency = .normal
     public var saveVideoClips: Bool = false
@@ -23,8 +22,10 @@ public enum SettingsAction: Equatable {
     case deleteLocalData
 }
 
-@Reducer
-public struct SettingsReducer {
+public struct SettingsReducer: Reducer {
+    public typealias State = SettingsState
+    public typealias Action = SettingsAction
+
     public init() {}
 
     public var body: some Reducer<SettingsState, SettingsAction> {
@@ -85,53 +86,59 @@ public struct SettingsView: View {
     }
 
     public var body: some View {
-        ZStack {
-            LiquidGlassBackground()
-            Form {
-                Section("피드백") {
-                    Picker("빈도", selection: feedbackFrequencyBinding) {
-                        Text("적게").tag(FeedbackFrequency.low)
-                        Text("보통").tag(FeedbackFrequency.normal)
-                        Text("자주").tag(FeedbackFrequency.high)
+        WithViewStore(store, observe: { $0 }) { viewStore in
+            ZStack {
+                LiquidGlassBackground()
+                Form {
+                    Section("피드백") {
+                        Picker("빈도", selection: feedbackFrequencyBinding(viewStore)) {
+                            Text("적게").tag(FeedbackFrequency.low)
+                            Text("보통").tag(FeedbackFrequency.normal)
+                            Text("자주").tag(FeedbackFrequency.high)
+                        }
+                        .pickerStyle(.segmented)
+                        .listRowBackground(Color.clear)
                     }
-                    .pickerStyle(.segmented)
-                    .listRowBackground(Color.clear)
-                }
 
-                Section("개인정보") {
-                    Toggle("선택한 짧은 클립 저장", isOn: saveVideoClipsBinding)
-                    Text("원본 영상은 기본 저장하지 않고, 세션 요약과 필요한 metric만 로컬에 저장합니다.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Button(role: .destructive) {
-                        store.send(.deleteLocalData)
-                        onDeleteLocalData()
-                    } label: {
-                        Text("로컬 데이터 삭제")
+                    Section("개인정보") {
+                        Toggle("선택한 짧은 클립 저장", isOn: saveVideoClipsBinding(viewStore))
+                        Text("원본 영상은 기본 저장하지 않고, 세션 요약과 필요한 metric만 로컬에 저장합니다.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button(role: .destructive) {
+                            viewStore.send(.deleteLocalData)
+                            onDeleteLocalData()
+                        } label: {
+                            Text("로컬 데이터 삭제")
+                        }
                     }
                 }
+                .scrollContentBackground(.hidden)
             }
-            .scrollContentBackground(.hidden)
         }
         .navigationTitle("설정")
     }
 
-    private var feedbackFrequencyBinding: Binding<FeedbackFrequency> {
-        Binding(
-            get: { store.feedbackFrequency },
-            set: { newValue in
-                store.send(.feedbackFrequencyChanged(newValue))
+    private func feedbackFrequencyBinding(
+        _ viewStore: ViewStore<SettingsState, SettingsAction>
+    ) -> Binding<FeedbackFrequency> {
+        viewStore.binding(
+            get: \.feedbackFrequency,
+            send: { newValue in
                 onFeedbackFrequencyChange(newValue)
+                return .feedbackFrequencyChanged(newValue)
             }
         )
     }
 
-    private var saveVideoClipsBinding: Binding<Bool> {
-        Binding(
-            get: { store.saveVideoClips },
-            set: { newValue in
-                store.send(.saveVideoClipsChanged(newValue))
+    private func saveVideoClipsBinding(
+        _ viewStore: ViewStore<SettingsState, SettingsAction>
+    ) -> Binding<Bool> {
+        viewStore.binding(
+            get: \.saveVideoClips,
+            send: { newValue in
                 onSaveVideoClipsChange(newValue)
+                return .saveVideoClipsChanged(newValue)
             }
         )
     }

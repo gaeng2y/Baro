@@ -3,6 +3,7 @@ import XCTest
 @testable import RecordFeature
 import TennisDomain
 
+@MainActor
 final class RecordReducerTests: XCTestCase {
     func testStrokeFinishedAddsAnalyzedSwingEvent() async {
         let now = Date(timeIntervalSinceReferenceDate: 10)

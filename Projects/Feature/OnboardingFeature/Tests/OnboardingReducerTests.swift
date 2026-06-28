@@ -3,6 +3,7 @@ import XCTest
 @testable import OnboardingFeature
 import TennisDomain
 
+@MainActor
 final class OnboardingReducerTests: XCTestCase {
     func testUpdatesHandedness() async {
         let store = TestStore(initialState: OnboardingState()) {
