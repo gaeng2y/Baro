@@ -1,7 +1,9 @@
+import ComposableArchitecture
 import DesignSystem
 import SwiftUI
 import TennisDomain
 
+@ObservableState
 public struct SettingsState: Equatable {
     public var feedbackFrequency: FeedbackFrequency = .normal
     public var saveVideoClips: Bool = false
@@ -21,23 +23,29 @@ public enum SettingsAction: Equatable {
     case deleteLocalData
 }
 
+@Reducer
 public struct SettingsReducer {
     public init() {}
 
-    public func reduce(state: inout SettingsState, action: SettingsAction) {
-        switch action {
-        case let .feedbackFrequencyChanged(frequency):
-            state.feedbackFrequency = frequency
-        case let .saveVideoClipsChanged(isEnabled):
-            state.saveVideoClips = isEnabled
-        case .deleteLocalData:
-            state = SettingsState()
+    public var body: some Reducer<SettingsState, SettingsAction> {
+        Reduce { state, action in
+            switch action {
+            case let .feedbackFrequencyChanged(frequency):
+                state.feedbackFrequency = frequency
+                return .none
+            case let .saveVideoClipsChanged(isEnabled):
+                state.saveVideoClips = isEnabled
+                return .none
+            case .deleteLocalData:
+                state = SettingsState()
+                return .none
+            }
         }
     }
 }
 
 public struct SettingsView: View {
-    @State private var state: SettingsState
+    public let store: StoreOf<SettingsReducer>
     public var onFeedbackFrequencyChange: (FeedbackFrequency) -> Void
     public var onSaveVideoClipsChange: (Bool) -> Void
     public var onDeleteLocalData: () -> Void
@@ -49,12 +57,28 @@ public struct SettingsView: View {
         onSaveVideoClipsChange: @escaping (Bool) -> Void = { _ in },
         onDeleteLocalData: @escaping () -> Void
     ) {
-        self._state = State(
-            initialValue: SettingsState(
-                feedbackFrequency: feedbackFrequency,
-                saveVideoClips: saveVideoClips
-            )
+        self.init(
+            store: Store(
+                initialState: SettingsState(
+                    feedbackFrequency: feedbackFrequency,
+                    saveVideoClips: saveVideoClips
+                )
+            ) {
+                SettingsReducer()
+            },
+            onFeedbackFrequencyChange: onFeedbackFrequencyChange,
+            onSaveVideoClipsChange: onSaveVideoClipsChange,
+            onDeleteLocalData: onDeleteLocalData
         )
+    }
+
+    public init(
+        store: StoreOf<SettingsReducer>,
+        onFeedbackFrequencyChange: @escaping (FeedbackFrequency) -> Void = { _ in },
+        onSaveVideoClipsChange: @escaping (Bool) -> Void = { _ in },
+        onDeleteLocalData: @escaping () -> Void
+    ) {
+        self.store = store
         self.onFeedbackFrequencyChange = onFeedbackFrequencyChange
         self.onSaveVideoClipsChange = onSaveVideoClipsChange
         self.onDeleteLocalData = onDeleteLocalData
@@ -79,7 +103,10 @@ public struct SettingsView: View {
                     Text("원본 영상은 기본 저장하지 않고, 세션 요약과 필요한 metric만 로컬에 저장합니다.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Button(role: .destructive, action: onDeleteLocalData) {
+                    Button(role: .destructive) {
+                        store.send(.deleteLocalData)
+                        onDeleteLocalData()
+                    } label: {
                         Text("로컬 데이터 삭제")
                     }
                 }
@@ -91,9 +118,9 @@ public struct SettingsView: View {
 
     private var feedbackFrequencyBinding: Binding<FeedbackFrequency> {
         Binding(
-            get: { state.feedbackFrequency },
+            get: { store.feedbackFrequency },
             set: { newValue in
-                state.feedbackFrequency = newValue
+                store.send(.feedbackFrequencyChanged(newValue))
                 onFeedbackFrequencyChange(newValue)
             }
         )
@@ -101,9 +128,9 @@ public struct SettingsView: View {
 
     private var saveVideoClipsBinding: Binding<Bool> {
         Binding(
-            get: { state.saveVideoClips },
+            get: { store.saveVideoClips },
             set: { newValue in
-                state.saveVideoClips = newValue
+                store.send(.saveVideoClipsChanged(newValue))
                 onSaveVideoClipsChange(newValue)
             }
         )

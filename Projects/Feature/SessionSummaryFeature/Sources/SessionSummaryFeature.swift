@@ -1,7 +1,9 @@
+import ComposableArchitecture
 import DesignSystem
 import SwiftUI
 import TennisDomain
 
+@ObservableState
 public struct SessionSummaryFeatureState: Equatable {
     public var session: TrainingSession
 
@@ -16,12 +18,35 @@ public enum SessionSummaryFeatureAction: Equatable {
     case done
 }
 
+@Reducer
+public struct SessionSummaryFeatureReducer {
+    public init() {}
+
+    public var body: some Reducer<SessionSummaryFeatureState, SessionSummaryFeatureAction> {
+        Reduce { _, _ in
+            .none
+        }
+    }
+}
+
 public struct SessionSummaryView: View {
-    public var session: TrainingSession
+    public let store: StoreOf<SessionSummaryFeatureReducer>
     public var onDone: () -> Void
 
     public init(session: TrainingSession, onDone: @escaping () -> Void) {
-        self.session = session
+        self.init(
+            store: Store(initialState: SessionSummaryFeatureState(session: session)) {
+                SessionSummaryFeatureReducer()
+            },
+            onDone: onDone
+        )
+    }
+
+    public init(
+        store: StoreOf<SessionSummaryFeatureReducer>,
+        onDone: @escaping () -> Void
+    ) {
+        self.store = store
         self.onDone = onDone
     }
 
@@ -93,7 +118,10 @@ public struct SessionSummaryView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    PrimaryCoachButton("완료", action: onDone)
+                    PrimaryCoachButton("완료") {
+                        store.send(.done)
+                        onDone()
+                    }
                 }
                 .padding(20)
             }
@@ -101,7 +129,7 @@ public struct SessionSummaryView: View {
     }
 
     private var summary: SessionSummary {
-        session.summary ?? SessionSummaryBuilder.build(from: session.swingEvents)
+        store.session.summary ?? SessionSummaryBuilder.build(from: store.session.swingEvents)
     }
 
     private var topError: ErrorCount? {

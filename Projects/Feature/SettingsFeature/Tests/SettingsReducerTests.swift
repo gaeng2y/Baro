@@ -1,29 +1,36 @@
+import ComposableArchitecture
 import XCTest
 @testable import SettingsFeature
 import TennisDomain
 
 final class SettingsReducerTests: XCTestCase {
-    func testFeedbackFrequencyChangedUpdatesState() {
-        var state = SettingsState()
+    func testFeedbackFrequencyChangedUpdatesState() async {
+        let store = TestStore(initialState: SettingsState()) {
+            SettingsReducer()
+        }
 
-        SettingsReducer().reduce(state: &state, action: .feedbackFrequencyChanged(.high))
-
-        XCTAssertEqual(state.feedbackFrequency, .high)
+        await store.send(.feedbackFrequencyChanged(.high)) {
+            $0.feedbackFrequency = .high
+        }
     }
 
-    func testSaveVideoClipsChangedUpdatesState() {
-        var state = SettingsState()
+    func testSaveVideoClipsChangedUpdatesState() async {
+        let store = TestStore(initialState: SettingsState()) {
+            SettingsReducer()
+        }
 
-        SettingsReducer().reduce(state: &state, action: .saveVideoClipsChanged(true))
-
-        XCTAssertTrue(state.saveVideoClips)
+        await store.send(.saveVideoClipsChanged(true)) {
+            $0.saveVideoClips = true
+        }
     }
 
-    func testDeleteLocalDataResetsSettingsState() {
-        var state = SettingsState(feedbackFrequency: .high, saveVideoClips: true)
+    func testDeleteLocalDataResetsSettingsState() async {
+        let store = TestStore(initialState: SettingsState(feedbackFrequency: .high, saveVideoClips: true)) {
+            SettingsReducer()
+        }
 
-        SettingsReducer().reduce(state: &state, action: .deleteLocalData)
-
-        XCTAssertEqual(state, SettingsState())
+        await store.send(.deleteLocalData) {
+            $0 = SettingsState()
+        }
     }
 }

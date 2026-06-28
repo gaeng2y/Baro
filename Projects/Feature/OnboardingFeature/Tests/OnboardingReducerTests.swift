@@ -1,34 +1,38 @@
+import ComposableArchitecture
 import XCTest
 @testable import OnboardingFeature
 import TennisDomain
 
 final class OnboardingReducerTests: XCTestCase {
-    func testUpdatesHandedness() {
-        var state = OnboardingState()
-        let reducer = OnboardingReducer()
+    func testUpdatesHandedness() async {
+        let store = TestStore(initialState: OnboardingState()) {
+            OnboardingReducer()
+        }
 
-        reducer.reduce(state: &state, action: .handednessChanged(.left))
-
-        XCTAssertEqual(state.handedness, .left)
+        await store.send(.handednessChanged(.left)) {
+            $0.handedness = .left
+        }
     }
 
-    func testUpdatesStrokePreference() {
-        var state = OnboardingState()
-        let reducer = OnboardingReducer()
+    func testUpdatesStrokePreference() async {
+        let store = TestStore(initialState: OnboardingState()) {
+            OnboardingReducer()
+        }
 
-        reducer.reduce(state: &state, action: .strokePreferenceChanged(.twoHandBackhand))
-
-        XCTAssertEqual(state.strokePreference, .twoHandBackhand)
+        await store.send(.strokePreferenceChanged(.twoHandBackhand)) {
+            $0.strokePreference = .twoHandBackhand
+        }
     }
 
-    func testCompletedDoesNotMutateDraftState() {
+    func testCompletedDoesNotMutateDraftState() async {
         var state = OnboardingState()
         state.handedness = .left
         state.strokePreference = .twoHandBackhand
-        let before = state
 
-        OnboardingReducer().reduce(state: &state, action: .completed)
+        let store = TestStore(initialState: state) {
+            OnboardingReducer()
+        }
 
-        XCTAssertEqual(state, before)
+        await store.send(.completed)
     }
 }

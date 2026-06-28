@@ -1,7 +1,9 @@
+import ComposableArchitecture
 import DesignSystem
 import SwiftUI
 import TennisDomain
 
+@ObservableState
 public struct HistoryState: Equatable {
     public var sessions: [TrainingSession]
 
@@ -14,29 +16,41 @@ public enum HistoryAction: Equatable {
     case delete(UUID)
 }
 
+@Reducer
 public struct HistoryReducer {
     public init() {}
 
-    public func reduce(state: inout HistoryState, action: HistoryAction) {
-        switch action {
-        case let .delete(id):
-            state.sessions.removeAll { $0.id == id }
+    public var body: some Reducer<HistoryState, HistoryAction> {
+        Reduce { state, action in
+            switch action {
+            case let .delete(id):
+                state.sessions.removeAll { $0.id == id }
+                return .none
+            }
         }
     }
 }
 
 public struct HistoryView: View {
-    public var sessions: [TrainingSession]
+    public let store: StoreOf<HistoryReducer>
 
     public init(sessions: [TrainingSession]) {
-        self.sessions = sessions
+        self.init(
+            store: Store(initialState: HistoryState(sessions: sessions)) {
+                HistoryReducer()
+            }
+        )
+    }
+
+    public init(store: StoreOf<HistoryReducer>) {
+        self.store = store
     }
 
     public var body: some View {
         ZStack {
             LiquidGlassBackground()
             List {
-                if sessions.isEmpty {
+                if store.sessions.isEmpty {
                     ContentUnavailableView(
                         "세션 기록 없음",
                         systemImage: "tennisball",
@@ -44,7 +58,7 @@ public struct HistoryView: View {
                     )
                     .listRowBackground(Color.clear)
                 } else {
-                    ForEach(sessions) { session in
+                    ForEach(store.sessions) { session in
                         VStack(alignment: .leading, spacing: 6) {
                             Text(session.strokeType.title)
                                 .font(.headline.weight(.bold))

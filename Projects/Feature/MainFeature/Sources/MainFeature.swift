@@ -1,7 +1,9 @@
+import ComposableArchitecture
 import DesignSystem
 import SwiftUI
 import TennisDomain
 
+@ObservableState
 public struct MainFeatureState: Equatable {
     public var recentSummary: SessionSummary?
 
@@ -17,7 +19,19 @@ public enum MainFeatureAction: Equatable {
     case openSettings
 }
 
+@Reducer
+public struct MainFeatureReducer {
+    public init() {}
+
+    public var body: some Reducer<MainFeatureState, MainFeatureAction> {
+        Reduce { _, _ in
+            .none
+        }
+    }
+}
+
 public struct MainView: View {
+    public let store: StoreOf<MainFeatureReducer>
     public var onStartTraining: () -> Void
     public var onQuickStart: (StrokeType) -> Void
     public var onHistory: () -> Void
@@ -29,6 +43,25 @@ public struct MainView: View {
         onHistory: @escaping () -> Void,
         onSettings: @escaping () -> Void
     ) {
+        self.init(
+            store: Store(initialState: MainFeatureState()) {
+                MainFeatureReducer()
+            },
+            onStartTraining: onStartTraining,
+            onQuickStart: onQuickStart,
+            onHistory: onHistory,
+            onSettings: onSettings
+        )
+    }
+
+    public init(
+        store: StoreOf<MainFeatureReducer>,
+        onStartTraining: @escaping () -> Void,
+        onQuickStart: @escaping (StrokeType) -> Void,
+        onHistory: @escaping () -> Void,
+        onSettings: @escaping () -> Void
+    ) {
+        self.store = store
         self.onStartTraining = onStartTraining
         self.onQuickStart = onQuickStart
         self.onHistory = onHistory
@@ -50,10 +83,16 @@ public struct MainView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        GlassIconButton(systemName: "gearshape.fill", action: onSettings)
+                        GlassIconButton(systemName: "gearshape.fill") {
+                            store.send(.openSettings)
+                            onSettings()
+                        }
                     }
 
-                    PrimaryCoachButton("훈련 시작", action: onStartTraining)
+                    PrimaryCoachButton("훈련 시작") {
+                        store.send(.startTraining)
+                        onStartTraining()
+                    }
 
                     CoachCard {
                         HStack {
@@ -70,6 +109,7 @@ public struct MainView: View {
                                 systemImage: "figure.tennis",
                                 tint: CoachTheme.tennisTint
                             ) {
+                                store.send(.quickStart(.forehand))
                                 onQuickStart(.forehand)
                             }
                             QuickStartShortcut(
@@ -78,6 +118,7 @@ public struct MainView: View {
                                 systemImage: "arrow.triangle.2.circlepath",
                                 tint: CoachTheme.courtBlue
                             ) {
+                                store.send(.quickStart(.twoHandBackhand))
                                 onQuickStart(.twoHandBackhand)
                             }
                         }
@@ -88,7 +129,10 @@ public struct MainView: View {
                             .font(.headline.weight(.heavy))
                         Text("아직 세션 기록이 없어요.")
                             .foregroundStyle(.secondary)
-                        Button("히스토리 보기", action: onHistory)
+                        Button("히스토리 보기") {
+                            store.send(.openHistory)
+                            onHistory()
+                        }
                             .buttonStyle(.bordered)
                             .buttonBorderShape(.capsule)
                     }

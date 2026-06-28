@@ -1,7 +1,9 @@
+import ComposableArchitecture
 import DesignSystem
 import SwiftUI
 import TennisDomain
 
+@ObservableState
 public struct OnboardingState: Equatable {
     public var handedness: Handedness = .right
     public var strokePreference: StrokeType = .forehand
@@ -17,26 +19,44 @@ public enum OnboardingAction: Equatable {
     case completed
 }
 
+@Reducer
 public struct OnboardingReducer {
     public init() {}
 
-    public func reduce(state: inout OnboardingState, action: OnboardingAction) {
-        switch action {
-        case let .handednessChanged(handedness):
-            state.handedness = handedness
-        case let .strokePreferenceChanged(stroke):
-            state.strokePreference = stroke
-        case .completed:
-            break
+    public var body: some Reducer<OnboardingState, OnboardingAction> {
+        Reduce { state, action in
+            switch action {
+            case let .handednessChanged(handedness):
+                state.handedness = handedness
+                return .none
+            case let .strokePreferenceChanged(stroke):
+                state.strokePreference = stroke
+                return .none
+            case .completed:
+                return .none
+            }
         }
     }
 }
 
 public struct OnboardingView: View {
-    @State private var state = OnboardingState()
+    public let store: StoreOf<OnboardingReducer>
     public var onComplete: (UserProfile) -> Void
 
     public init(onComplete: @escaping (UserProfile) -> Void) {
+        self.init(
+            store: Store(initialState: OnboardingState()) {
+                OnboardingReducer()
+            },
+            onComplete: onComplete
+        )
+    }
+
+    public init(
+        store: StoreOf<OnboardingReducer>,
+        onComplete: @escaping (UserProfile) -> Void
+    ) {
+        self.store = store
         self.onComplete = onComplete
     }
 
@@ -57,13 +77,13 @@ public struct OnboardingView: View {
                     CoachCard {
                         Text("기본 설정")
                             .font(.headline.weight(.heavy))
-                        Picker("주 사용 손", selection: $state.handedness) {
+                        Picker("주 사용 손", selection: handednessBinding) {
                             Text("오른손").tag(Handedness.right)
                             Text("왼손").tag(Handedness.left)
                         }
                         .pickerStyle(.segmented)
 
-                        Picker("주 연습", selection: $state.strokePreference) {
+                        Picker("주 연습", selection: strokePreferenceBinding) {
                             ForEach(StrokeType.allCases) { stroke in
                                 Text(stroke.title).tag(stroke)
                             }
@@ -79,11 +99,12 @@ public struct OnboardingView: View {
                     .font(.subheadline.weight(.semibold))
 
                     PrimaryCoachButton("시작하기") {
+                        store.send(.completed)
                         onComplete(
                             UserProfile(
-                                handedness: state.handedness,
-                                backhandType: state.backhandType,
-                                feedbackFrequency: state.feedbackFrequency
+                                handedness: store.handedness,
+                                backhandType: store.backhandType,
+                                feedbackFrequency: store.feedbackFrequency
                             )
                         )
                     }
@@ -91,5 +112,19 @@ public struct OnboardingView: View {
                 .padding(20)
             }
         }
+    }
+
+    private var handednessBinding: Binding<Handedness> {
+        Binding(
+            get: { store.handedness },
+            set: { store.send(.handednessChanged($0)) }
+        )
+    }
+
+    private var strokePreferenceBinding: Binding<StrokeType> {
+        Binding(
+            get: { store.strokePreference },
+            set: { store.send(.strokePreferenceChanged($0)) }
+        )
     }
 }
