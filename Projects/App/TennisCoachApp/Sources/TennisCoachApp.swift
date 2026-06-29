@@ -19,7 +19,11 @@ struct TennisCoachApp: App {
 
     var body: some Scene {
         WindowGroup {
-            AppFeatureView(pipeline: .live(), appStorage: .live())
+            AppFeatureView(
+                pipeline: .live(),
+                appStorage: .live(),
+                analytics: .firebase
+            )
         }
     }
 }

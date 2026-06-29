@@ -52,13 +52,16 @@ public struct AppFeatureReducer: Reducer {
     public typealias Action = AppFeatureAction
 
     private let appStorage: LocalAppStorageClient
+    private let analytics: AnalyticsClient
     private let now: @Sendable () -> Date
 
     public init(
         appStorage: LocalAppStorageClient = .preview,
+        analytics: AnalyticsClient = .preview,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.appStorage = appStorage
+        self.analytics = analytics
         self.now = now
     }
 
@@ -67,7 +70,9 @@ public struct AppFeatureReducer: Reducer {
             switch action {
             case .task:
                 let appStorage = self.appStorage
+                let analytics = self.analytics
                 return .run { send in
+                    analytics.track(.appOpened)
                     do {
                         let persistedState = try await appStorage.load()
                         await send(.appStorageLoaded(persistedState))
@@ -94,24 +99,30 @@ public struct AppFeatureReducer: Reducer {
                 state.hasCompletedOnboarding = true
                 state.storageErrorMessage = nil
                 state.route = .main
-                return save(state.persistedAppState)
+                return .merge(
+                    save(state.persistedAppState),
+                    track(.onboardingCompleted(profile: profile))
+                )
 
             case .startTraining:
                 state.route = .setup(nil)
-                return .none
+                return track(.trainingSetupOpened(initialStroke: nil))
 
             case let .quickStart(stroke):
                 state.route = .setup(stroke)
-                return .none
+                return track(.trainingSetupOpened(initialStroke: stroke))
 
             case let .startRecord(stroke, cameraMode):
                 state.route = .record(stroke, cameraMode)
-                return .none
+                return track(.sessionStarted(strokeType: stroke, cameraMode: cameraMode))
 
             case let .sessionFinished(session):
                 state.sessions.insert(session, at: 0)
                 state.route = .summary(session)
-                return save(state.persistedAppState)
+                return .merge(
+                    save(state.persistedAppState),
+                    track(.sessionFinished(session))
+                )
 
             case let .feedbackFrequencyChanged(frequency):
                 guard var profile = state.userProfile else {
@@ -120,11 +131,17 @@ public struct AppFeatureReducer: Reducer {
                 profile.feedbackFrequency = frequency
                 profile.updatedAt = now()
                 state.userProfile = profile
-                return save(state.persistedAppState)
+                return .merge(
+                    save(state.persistedAppState),
+                    track(.settingsChanged(key: "feedback_frequency", value: .string(frequency.rawValue)))
+                )
 
             case let .saveVideoClipsChanged(isEnabled):
                 state.saveVideoClips = isEnabled
-                return save(state.persistedAppState)
+                return .merge(
+                    save(state.persistedAppState),
+                    track(.settingsChanged(key: "save_video_clips", value: .bool(isEnabled)))
+                )
 
             case .openHistory:
                 state.route = .history
@@ -145,7 +162,10 @@ public struct AppFeatureReducer: Reducer {
                 state.saveVideoClips = false
                 state.storageErrorMessage = nil
                 state.route = .main
-                return deleteLocalData()
+                return .merge(
+                    deleteLocalData(),
+                    track(.localDataDeleted)
+                )
             }
         }
     }
@@ -171,6 +191,13 @@ public struct AppFeatureReducer: Reducer {
             }
         }
     }
+
+    private func track(_ event: AnalyticsEvent) -> Effect<AppFeatureAction> {
+        let analytics = analytics
+        return .run { _ in
+            analytics.track(event)
+        }
+    }
 }
 
 public struct AppFeatureView: View {
@@ -179,11 +206,12 @@ public struct AppFeatureView: View {
 
     public init(
         pipeline: SessionPipeline = .preview,
-        appStorage: LocalAppStorageClient = .preview
+        appStorage: LocalAppStorageClient = .preview,
+        analytics: AnalyticsClient = .preview
     ) {
         self.init(
             store: Store(initialState: AppFeatureState()) {
-                AppFeatureReducer(appStorage: appStorage)
+                AppFeatureReducer(appStorage: appStorage, analytics: analytics)
             },
             pipeline: pipeline
         )
