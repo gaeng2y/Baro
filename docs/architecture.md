@@ -87,12 +87,15 @@ External system boundaries and runtime orchestration:
 - `PoseEstimationClient`
 - `CoachingEngineClient`
 - `AudioFeedbackClient`
+- `AnalyticsClient`
 - `LocalAppStorageClient`
 - `LocalSessionStoreClient`
 - `SessionPipeline`
 - `SwingPhaseDetector`
 
 `TennisCore` can import platform frameworks where needed, but should expose domain-level values to features. The preferred output from the runtime pipeline is `CoachingEvent`, not raw camera frames.
+
+Analytics is a Core client boundary. Features may depend on `AnalyticsClient`, but Firebase stays in `TennisCoachApp`.
 
 ### UserInterface
 
@@ -132,6 +135,7 @@ Reducers should not process frame-by-frame camera or pose data.
 
 - New domain concept: start in `TennisDomain`, add tests under `Projects/Domain/TennisDomain/Tests`.
 - New platform integration: add or extend a client in `TennisCore`.
+- New analytics event: add the event to `AnalyticsEvent`, log it through `AnalyticsClient`, and document it in `docs/analytics.md`.
 - New screen: create or extend a feature module under `Projects/Feature`.
 - Shared visual primitive: add to `DesignSystem`.
 - Camera preview-specific UI wrapper: add to `CameraPreviewUI`.
@@ -140,5 +144,6 @@ Reducers should not process frame-by-frame camera or pose data.
 
 - Put pure domain behavior under XCTest in `TennisDomainTests`.
 - Prefer deterministic tests for cue selection, summary building, phase detection, and metric extraction.
-- Use `make test` for domain test verification.
+- Use `make test-domain` for domain-only verification.
+- Use `make test` for the full unit test suite.
 - Use `make build` for app, feature, UI, Core, and manifest changes.

@@ -2,7 +2,7 @@
 
 ## Project
 
-TennisCoach is an iOS 17+ Swift 6 SwiftUI app for on-device tennis form coaching. The MVP records forehand and two-handed backhand practice, analyzes swing form locally, and delivers one short correction cue through the current audio output shortly after a swing.
+TennisCoach is an iOS 26+ Swift 6 SwiftUI app for on-device tennis form coaching. The MVP records forehand and two-handed backhand practice, analyzes swing form locally, and delivers one short correction cue through the current audio output shortly after a swing.
 
 ## Repository Rules
 
@@ -22,6 +22,7 @@ TennisCoach is an iOS 17+ Swift 6 SwiftUI app for on-device tennis form coaching
 - [docs/agents.md](docs/agents.md): long-form agent operating guide
 - [docs/architecture.md](docs/architecture.md): module boundaries and runtime pipeline
 - [docs/swiftui.md](docs/swiftui.md): SwiftUI and design system guidance
+- [docs/analytics.md](docs/analytics.md): analytics event taxonomy and Firebase boundary
 - [docs/coreml.md](docs/coreml.md): Core ML and on-device ML strategy
 - [docs/documentation-plan.md](docs/documentation-plan.md): future documentation backlog
 
@@ -30,7 +31,8 @@ TennisCoach is an iOS 17+ Swift 6 SwiftUI app for on-device tennis form coaching
 - Generate workspace: `make generate`
 - Configure signing and generate: `make setup TEAM_ID=<TEAM_ID>`
 - Build simulator app: `make build`
-- Run domain tests: `make test`
+- Run all tests: `make test`
+- Run domain tests only: `make test-domain`
 - Clean generated Tuist/Xcode files: `make clean`
 
 If `Project.swift` or target membership changes, regenerate the workspace with `make generate` before Xcode-based verification.
@@ -55,11 +57,12 @@ TennisCore
 Rules:
 
 - `TennisDomain` stays pure. Do not import SwiftUI, AVFoundation, Vision, or app-specific infrastructure there.
-- Feature modules own user-facing state, actions, reducers, and SwiftUI views.
+- Feature modules own user-facing state, actions, TCA reducers, and SwiftUI views.
 - `TennisCore` owns external-system client boundaries such as camera, permission, pose estimation, coaching engine, audio feedback, local session storage, and session pipeline.
-- Feature modules must not know concrete AVFoundation, Vision, or future MediaPipe implementations.
+- Feature modules must not know concrete AVFoundation, Vision, Firebase, or future MediaPipe implementations.
 - Reducers should receive high-level events such as `CoachingEvent`; do not push frame-by-frame camera or pose processing into reducers.
-- Keep the existing TCA-ready shape (`State`, `Action`, `Reducer`) even while the codebase does not yet import TCA.
+- Keep TCA reducers macro-free unless the project explicitly opts back into Xcode macro approval. Prefer explicit `Reducer` conformance and `WithViewStore` for now.
+- Analytics events go through `AnalyticsClient`; do not import Firebase outside the app target.
 
 ## UI Guidelines
 
@@ -81,7 +84,7 @@ Rules:
 
 ## Testing Expectations
 
-- For pure domain changes, add or update tests under `Projects/Domain/TennisDomain/Tests` and run `make test`.
+- For pure domain changes, add or update tests under `Projects/Domain/TennisDomain/Tests` and run `make test-domain`.
 - For app, feature, UI, or project-file changes, run `make build` when feasible.
 - If verification cannot run because signing, simulator, Tuist, or Xcode state is unavailable, report the exact blocker.
 

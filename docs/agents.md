@@ -16,11 +16,12 @@ This document is the long-form guide for AI coding agents. The root `AGENTS.md` 
 
 TennisCoach is a Tuist-based iOS app:
 
-- iOS 17+
+- iOS 26+
 - Swift 6
 - SwiftUI
 - Clean Architecture style modules
-- TCA-ready `State` / `Action` / `Reducer` feature shape
+- TCA `State` / `Action` / explicit `Reducer` feature shape
+- Firebase Analytics behind the Core `AnalyticsClient` boundary
 - On-device camera, pose estimation, rule-based coaching, and audio feedback pipeline
 
 Primary source references:
@@ -35,7 +36,8 @@ Primary source references:
 - Generate workspace: `make generate`
 - Configure signing and generate workspace: `make setup TEAM_ID=<TEAM_ID>`
 - Build app for simulator: `make build`
-- Run domain tests: `make test`
+- Run all tests: `make test`
+- Run domain tests only: `make test-domain`
 - Clean generated project files: `make clean`
 
 When using XcodeBuildMCP, inspect session defaults before build or run calls. If defaults are missing, use the workspace `TennisCoach.xcworkspace`, scheme `TennisCoachApp`, and an available iOS simulator.
@@ -71,6 +73,6 @@ Agents should update docs when they change behavior that future work depends on:
 
 - Module boundaries or dependencies: update [Architecture](architecture.md).
 - SwiftUI patterns, design system primitives, or navigation shape: update [SwiftUI Guide](swiftui.md).
+- Analytics events or parameters: update [Analytics](analytics.md).
 - Camera, Vision, pose features, model inputs, model outputs, or inference flow: update [Core ML and On-Device ML](coreml.md).
 - New recurring engineering process: update this guide.
-

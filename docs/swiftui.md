@@ -1,12 +1,14 @@
 # SwiftUI Guide
 
-This app uses SwiftUI with TCA-ready feature shapes, without importing TCA yet.
+This app uses SwiftUI with TCA feature stores. The current code intentionally avoids TCA macros so Xcode package macro approval does not block local builds.
 
 ## Feature Shape
 
 Feature modules should keep this shape:
 
 ```swift
+import ComposableArchitecture
+
 public struct FeatureState: Equatable {
     public init() {}
 }
@@ -14,18 +16,25 @@ public struct FeatureState: Equatable {
 public enum FeatureAction: Equatable {
 }
 
-public struct FeatureReducer {
+public struct FeatureReducer: Reducer {
+    public typealias State = FeatureState
+    public typealias Action = FeatureAction
+
     public init() {}
 
-    public func reduce(state: inout FeatureState, action: FeatureAction) {
+    public var body: some Reducer<FeatureState, FeatureAction> {
+        Reduce { state, action in
+            .none
+        }
     }
 }
 
 public struct FeatureView: View {
+    public let store: StoreOf<FeatureReducer>
 }
 ```
 
-Keep state mutations explicit and small. When later adopting TCA, this shape should migrate with minimal churn.
+Keep state mutations explicit and small. Prefer explicit `Reducer` conformance and `WithViewStore` until the project deliberately switches to `@Reducer` and `@ObservableState`.
 
 ## View Responsibilities
 
@@ -33,6 +42,7 @@ SwiftUI views should:
 
 - Render state.
 - Send high-level user actions.
+- Let reducers own feature state mutation and side-effect triggers.
 - Own local UI-only state when it does not belong in domain or persistence.
 - Keep platform details behind Core clients or UI boundary modules.
 
@@ -42,6 +52,7 @@ SwiftUI views should not:
 - Run pose estimation directly.
 - Select coaching cues from raw model output.
 - Persist session data directly.
+- Import Firebase directly.
 
 ## Design System
 
@@ -122,4 +133,3 @@ For UI changes:
 - Run `make build` when feasible.
 - Check compact iPhone widths when text or new controls are added.
 - If camera UI changes, verify the no-camera fallback and live preview path both still compile.
-

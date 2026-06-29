@@ -7,6 +7,7 @@ This directory holds long-lived engineering documentation for TennisCoach. Keep 
 - [Agent Guide](agents.md): rules for Codex, Claude, and other coding agents working in this repository.
 - [Architecture](architecture.md): module boundaries, dependency direction, runtime pipeline, and where new code should live.
 - [SwiftUI Guide](swiftui.md): feature view structure, design system usage, navigation, accessibility, and UI verification.
+- [Analytics](analytics.md): event taxonomy, parameter rules, and Firebase integration boundary.
 - [Core ML and On-Device ML](coreml.md): current non-ML MVP stance, future classifier strategy, dataset shape, evaluation, and integration boundaries.
 - [Documentation Plan](documentation-plan.md): the next docs that should be added as the app grows.
 
@@ -17,6 +18,7 @@ This directory holds long-lived engineering documentation for TennisCoach. Keep 
 - Keep PRD-level product decisions in `PRD.md`; keep implementation constraints in `docs/`.
 - When an architectural rule changes, update [Architecture](architecture.md) and [Agent Guide](agents.md) in the same change.
 - When a UI primitive or screen pattern changes, update [SwiftUI Guide](swiftui.md).
+- When tracked product behavior changes, update [Analytics](analytics.md).
 - When camera, pose estimation, model, or coaching pipeline behavior changes, update [Core ML and On-Device ML](coreml.md) if the change affects future model integration.
 
 ## Generated Files
@@ -26,4 +28,3 @@ Do not document generated Tuist or Xcode files as source of truth. These are loc
 - `TennisCoach.xcworkspace`
 - `TennisCoach.xcodeproj`
 - `Derived/`
-
